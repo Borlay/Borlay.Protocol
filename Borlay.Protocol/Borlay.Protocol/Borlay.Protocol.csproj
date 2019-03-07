@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.6</TargetFramework>
+    <Authors>Paulius Kanoverskis</Authors>
+    <Copyright>Paulius Kanoverskis</Copyright>
+    <PackageLicenseUrl>https://github.com/Borlay/Borlay.Protocol/blob/master/LICENSE.md</PackageLicenseUrl>
+    <PackageProjectUrl>http://borlay.org</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Borlay/Borlay.Protocol/</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>protocol serialization</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Borlay.Arrays" Version="1.0.0" />
+    <PackageReference Include="Borlay.Handling" Version="1.0.0" />
+    <PackageReference Include="Borlay.Injection" Version="1.0.0" />
+    <PackageReference Include="Borlay.Serialization" Version="1.0.0" />
+  </ItemGroup>
+
+</Project>
