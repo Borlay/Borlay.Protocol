@@ -6,10 +6,10 @@ namespace Borlay.Protocol
 {
     public class RequestHeader
     {
-        public RequestType RequestType { get; set; }
-        public bool CanBeCached { get; set; }
-        public byte RezervedFlag { get; set; }
-        public int RequestId { get; set; }
+        public RequestType RequestType { get; internal set; }
+        public bool CanBeCached { get; internal set; }
+        public byte RezervedFlag { get; internal set; }
+        public int RequestId { get; internal set; }
     }
 
     public class ConverterHeader

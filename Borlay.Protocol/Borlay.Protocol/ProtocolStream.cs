@@ -2,6 +2,7 @@
 using Borlay.Handling;
 using Borlay.Handling.Notations;
 using Borlay.Protocol.Converters;
+using Borlay.Protocol.Injections;
 using Borlay.Serialization;
 using Borlay.Serialization.Converters;
 using System;
@@ -17,21 +18,22 @@ namespace Borlay.Protocol
 {
     public class ProtocolStream : IRequestAsync
     {
-        public const int DefaultBufferSize = 2048;
+        public const int DefaultBufferSize = 4096;
         public int BufferSize { get; protected set; } = DefaultBufferSize;
 
         public event Action<ProtocolStream> Closed = (p) => { };
 
-        protected readonly ICache dataCache;
-        protected readonly IRequestKeyCache responseKeyCache = new RequestKeyCache();
-        protected readonly IRequestKeyCache requestKeyCache = new RequestKeyCache();
+        //protected readonly ICache dataCache;
+        //protected readonly IRequestKeyCache responseKeyCache = new RequestKeyCache();
+        //protected readonly IRequestKeyCache requestKeyCache = new RequestKeyCache();
 
         protected readonly IPacketStream packetStream;
         //protected readonly ISerializer serializer;
         protected readonly IHandlerProvider handlerProvider;
         protected readonly IProtocolConverter protocolConverter;
 
-        protected readonly DataContext converterHeaderContext;
+        
+        public ConverterHeader ConverterHeader { get; set; }
 
         protected byte[] sendBuffer = new byte[DefaultBufferSize];
         protected byte[] readBuffer = new byte[DefaultBufferSize];
@@ -42,6 +44,10 @@ namespace Borlay.Protocol
         protected int lastRequestId = 0;
         protected volatile bool closed = false;
         protected volatile bool listening = false;
+
+        public IDataInject DataInject { get; set; }
+
+        public ISecurityInject SecurityInject { get; set; }
 
 
         public ProtocolStream(Stream stream, ISerializer serializer, IHandlerProvider handlerProvider)
@@ -56,27 +62,37 @@ namespace Borlay.Protocol
         }
 
         public ProtocolStream(IPacketStream packetStream, ISerializer serializer, IHandlerProvider handlerProvider, ICache cache)
+            : this(packetStream, new ProtocolConverter(serializer), handlerProvider, cache)
+        {
+        }
+
+        public ProtocolStream(IPacketStream packetStream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
+            : this(packetStream, protocolConverter, handlerProvider, new Cache())
+        {
+        }
+
+        public ProtocolStream(Stream stream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
+            : this(new PacketStream(stream), protocolConverter, handlerProvider, new Cache())
+        {
+        }
+
+        public ProtocolStream(IPacketStream packetStream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider, ICache cache)
         {
             this.packetStream = packetStream ?? throw new ArgumentNullException(nameof(packetStream));
-            //this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.handlerProvider = handlerProvider ?? throw new ArgumentNullException(nameof(handlerProvider));
-            this.dataCache = cache ?? throw new ArgumentNullException(nameof(cache));
+            //this.dataCache = cache ?? throw new ArgumentNullException(nameof(cache));
 
-            protocolConverter = new ProtocolConverter(serializer);
+            this.protocolConverter = protocolConverter;
 
-            converterHeaderContext = new DataContext()
-            {
-                Data = new ConverterHeader() { VersionMajor = 1 },
-                DataFlag = DataFlag.Header,
-            };
+            this.ConverterHeader = new ConverterHeader() { VersionMajor = 1 };
         }
 
-        public async Task<T> SendRequestAsync<T>(IActionMeta actionMeta, object obj, bool throwOnEmpty, CancellationToken cancellationToken)
-        {
-            var responseObj = await SendRequestAsync(actionMeta, obj, throwOnEmpty, cancellationToken);
-            var response = ValidateResponse<T>(responseObj, throwOnEmpty);
-            return response;
-        }
+        //public async Task<T> SendRequestAsync<T>(IActionMeta actionMeta, object obj, bool throwOnEmpty, CancellationToken cancellationToken)
+        //{
+        //    var responseObj = await SendRequestAsync(actionMeta, obj, throwOnEmpty, cancellationToken);
+        //    var response = ValidateResponse<T>(responseObj, throwOnEmpty);
+        //    return response;
+        //}
 
         /// <summary>
         /// Set send and read buffers size. This method is not thread safe.
@@ -91,7 +107,7 @@ namespace Borlay.Protocol
 
         // todo request cache
 
-        public virtual Task<object> SendRequestAsync(IActionMeta actionMeta, object obj, bool throwOnEmpty, CancellationToken cancellationToken)
+        public virtual Task<object> SendRequestAsync(DataContext[] argumentContexts, CancellationToken cancellationToken)
         {
             var stop = ProtocolWatch.Start("send-request");
             var taskSource = new TaskCompletionSource<object>();
@@ -102,30 +118,29 @@ namespace Borlay.Protocol
                 ThrowClosed();
 
                 var requestId = lastRequestId++;
-                int index = 2;
 
                 var requestHeader = new RequestHeader()
                 {
                     RequestId = requestId,
-                    CanBeCached = actionMeta.CanBeCached,
+                    CanBeCached = false, //actionMeta.CanBeCached,
                     RequestType = RequestType.Request,
                     RezervedFlag = 0
                 };
 
-                var requestHeaderContext = new DataContext()
-                {
-                    Data = requestHeader,
-                    DataFlag = DataFlag.Header
-                };
+                //var actionDataContext = new DataContext()
+                //{
+                //    DataFlag = DataFlag.Action,
+                //    Data = actionMeta.GetActionId(),
+                //};
 
-                protocolConverter.Apply(sendBuffer, ref index, converterHeaderContext, requestHeaderContext);
+                //var dataDataContext = new DataContext()
+                //{
+                //    DataFlag = DataFlag.Data,
+                //    Data = obj,
+                //};
 
-                var keyStartIndex = index;
 
-                protocolConverter.Apply(sendBuffer, ref index, actionMeta.GetActionId(), DataFlag.Action);
-                protocolConverter.ApplyData(sendBuffer, ref index, obj);
-
-                sendBuffer.InsertLength(index - 2);
+                var index = PrepareSendData(sendBuffer, requestHeader, argumentContexts);
 
                 responses[requestId] = taskSource;
 
@@ -135,12 +150,12 @@ namespace Borlay.Protocol
                         tcs.TrySetCanceled();
                 });
 
-                if(actionMeta.CacheReceivedResponse)
-                {
-                    var key = responseKeyCache.GetKey(sendBuffer, keyStartIndex, index - keyStartIndex);
-                    if(!dataCache.Contains(key))
-                        responseKeyCache.SaveRequestKey(requestId, key);
-                }
+                //if(actionMeta.CacheReceivedResponse)
+                //{
+                //    var key = responseKeyCache.GetKey(sendBuffer, keyStartIndex, index - keyStartIndex);
+                //    if(!dataCache.Contains(key))
+                //        responseKeyCache.SaveRequestKey(requestId, key);
+                //}
 
                 packetStream.WritePacket(sendBuffer, index, false);
             }
@@ -158,6 +173,69 @@ namespace Borlay.Protocol
             return taskSource.Task;
         }
 
+        protected virtual int PrepareSendData(byte[] sendBuffer, RequestHeader requestHeader, params DataContext[] argumentContexts)
+        {
+            var index = 2;
+
+            var converterHeader = this.ConverterHeader;
+            var converterHeaderContext = new DataContext()
+            {
+                Data = converterHeader,
+                DataFlag = DataFlag.Header,
+            };
+
+            var requestHeaderContext = new DataContext()
+            {
+                Data = requestHeader,
+                DataFlag = DataFlag.Header
+            };
+
+            DataContext[] dataContexts = null;
+            if (DataInject != null)
+            {
+                var injectContext = new DataInjectContext()
+                {
+                    ConverterHeader = ConverterHeader,
+                    RequestHeader = requestHeader,
+                    GetData = () => argumentContexts.ToLookup(c => c.DataFlag),
+                };
+
+                dataContexts = DataInject.SendData(injectContext)?.ToArray();
+                converterHeader = injectContext.ConverterHeader;
+                converterHeaderContext.Data = converterHeader;
+            }
+
+            protocolConverter.Apply(sendBuffer, ref index, converterHeaderContext, requestHeaderContext);
+            var headerEndIndex = index;
+
+            if (dataContexts != null)
+            {
+                protocolConverter.Apply(sendBuffer, ref index, dataContexts);
+            }
+
+            var dataStartIndex = index;
+            protocolConverter.Apply(sendBuffer, ref index, argumentContexts);
+
+            if (SecurityInject != null)
+            {
+                var securityContext = new SecurityInjectContext()
+                {
+                    ConverterHeader = converterHeader,
+                    RequestHeader = requestHeader,
+                    HeaderEndIndex = headerEndIndex,
+                    Data = sendBuffer,
+                    Length = index
+                };
+
+                SecurityInject?.SendSecurity(securityContext);
+                index = securityContext.Length;
+            }
+
+            sendBuffer.InsertLength(index - 2);
+
+            return index;
+        }
+
         public virtual Task ListenAsync(CancellationToken cancellationToken)
         {
             ThrowClosed();
@@ -173,10 +251,7 @@ namespace Borlay.Protocol
                         if (length < 11 || length > readBuffer.Length)
                             throw new ProtocolException(ErrorCode.BadRequest);
 
-                        //var newArray = new byte[length];
-                        //Array.Copy(readBuffer, newArray, length);
-                        
-                        HandlePacket(readBuffer, cancellationToken);
+                        HandlePacket(readBuffer, length, cancellationToken);
 
                         cancellationToken.ThrowIfCancellationRequested();
                     }
@@ -189,7 +264,7 @@ namespace Borlay.Protocol
             }, TaskCreationOptions.LongRunning);
         }
 
-        protected virtual void HandlePacket(byte[] readBuffer, CancellationToken cancellationToken)
+        protected virtual void HandlePacket(byte[] readBuffer, int length, CancellationToken cancellationToken)
         {
             ThrowClosed();
 
@@ -208,23 +283,28 @@ namespace Borlay.Protocol
             if (converterHeader.Compression != 0)
                 throw new ProtocolException(ErrorCode.VersionNotSupported);
 
+
+            var resolvedContexts = protocolConverter.Resolve(readBuffer, ref index, length);
+            ILookup<DataFlag, DataContext> contexts = resolvedContexts.ToLookup(c => c.DataFlag);
+
             stop();
+
 
             var requestId = requestHeader.RequestId;
 
             if (requestHeader.RequestType == RequestType.Response)
             {
-                HandleResponse(readBuffer, requestId, requestHeader.CanBeCached, index);
+                HandleResponse(contexts, requestId, requestHeader.CanBeCached, index);
             }
             else if (requestHeader.RequestType == RequestType.Request)
             {
-                HandleRequest(readBuffer, requestId, index, cancellationToken);
+                HandleRequest(contexts, requestId, index, cancellationToken);
             }
             else
                 throw new ProtocolException(ErrorCode.BadRequest);
         }
 
-        protected virtual void HandleResponse(byte[] readBuffer, int requestId, bool canBeCached, int index)
+        protected virtual void HandleResponse(ILookup<DataFlag, DataContext> contexts, int requestId, bool canBeCached, int index)
         {
             var stop = ProtocolWatch.Start("rp-handle-response");
 
@@ -237,14 +317,15 @@ namespace Borlay.Protocol
 
                     var dataStartIndex = index;
 
-                    var response = protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Data);
+                    var response = contexts[DataFlag.Data].First().Data;
+                    //var response = protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Data);
 
                     var isEmpty = IsEmptyOrError(response, false);
                     if (isEmpty)
                         tcs.TrySetResult(null);
 
-                    if (responseKeyCache.TryRemoveRequestKey(requestId, out var key) && canBeCached && !isEmpty)
-                        dataCache.AddData(key, readBuffer, dataStartIndex, index - dataStartIndex);
+                    //if (responseKeyCache.TryRemoveRequestKey(requestId, out var key) && canBeCached && !isEmpty)
+                    //    dataCache.AddData(key, readBuffer, dataStartIndex, index - dataStartIndex);
 
                     tcs.TrySetResult(response);
                     stop();
@@ -256,7 +337,7 @@ namespace Borlay.Protocol
             }
         }
 
-        protected virtual void HandleRequest(byte[] readBuffer, int requestId, int index, CancellationToken cancellationToken)
+        protected virtual void HandleRequest(ILookup<DataFlag, DataContext> contexts, int requestId, int index, CancellationToken cancellationToken)
         {
             var cache = false;
             try
@@ -265,33 +346,35 @@ namespace Borlay.Protocol
 
                 var keyStartIndex = index;
 
-                var actionId = protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Action);
-                var request = protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Data);
+                var actionId = contexts[DataFlag.Action].First().Data; //protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Action);
+                var scopeId = contexts[DataFlag.Scope].FirstOrDefault()?.Data;
+                var request = contexts[DataFlag.Data].Select(d => d.Data).ToArray(); //protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Data);
+                var types = request.Select(r => r.GetType()).ToArray();
 
-                var isEmpty = IsEmptyOrError(request, false);
-                if (isEmpty)
-                    throw new ProtocolException(ErrorCode.UnknownRequest);
+                //var isEmpty = IsEmptyOrError(request, false);
+                //if (isEmpty)
+                //    throw new ProtocolException(ErrorCode.UnknownRequest);
 
                 // todo add actionId
-                if(!handlerProvider.TryGetHandler("", actionId, new Type[] { request.GetType() }, out var handlerItem))
+                if(!handlerProvider.TryGetHandler(scopeId ?? "", actionId, types, out var handlerItem))
                     throw new ProtocolException(ErrorCode.BadRequest);
 
                 var actionMeta = handlerItem.ActionMeta ?? throw new ArgumentNullException(nameof(handlerItem.ActionMeta));
 
-                if (actionMeta.CanBeCached)
-                {
-                    var key = responseKeyCache.GetKey(readBuffer, keyStartIndex, index - keyStartIndex);
-                    if (dataCache.TryGetData(key, out var bytes))
-                    {
-                        SendResponse(requestId, bytes, actionMeta.CanBeCached);
-                        return;
-                    }
-                    else if (actionMeta.CacheSendedResponse)
-                    {
-                        cache = true;
-                        requestKeyCache.SaveRequestKey(requestId, key);
-                    }
-                }
+                //if (actionMeta.CanBeCached)
+                //{
+                //    var key = responseKeyCache.GetKey(readBuffer, keyStartIndex, index - keyStartIndex);
+                //    if (dataCache.TryGetData(key, out var bytes))
+                //    {
+                //        SendResponse(requestId, bytes, actionMeta.CanBeCached);
+                //        return;
+                //    }
+                //    else if (actionMeta.CacheSendedResponse)
+                //    {
+                //        cache = true;
+                //        requestKeyCache.SaveRequestKey(requestId, key);
+                //    }
+                //}
 
                 stop();
 
@@ -304,7 +387,7 @@ namespace Borlay.Protocol
             }
         }
 
-        protected virtual async void HandleRequestAsync(int requestId, IHandler handler, object request, bool canBeCached, bool cache, CancellationToken cancellationToken)
+        protected virtual async void HandleRequestAsync(int requestId, IHandler handler, object[] request, bool canBeCached, bool cache, CancellationToken cancellationToken)
         {
             try
             {
@@ -350,6 +433,7 @@ namespace Borlay.Protocol
             };
         }
 
+
         public virtual void SendResponse(int requestId, object response, bool canBeCached, bool cache)
         {
             var stop = ProtocolWatch.Start("rp-send-response");
@@ -357,9 +441,8 @@ namespace Borlay.Protocol
             try
             {
                 ThrowClosed();
-                var index = 2;
 
-                var header = new RequestHeader()
+                var requestHeader = new RequestHeader()
                 {
                     RequestId = requestId,
                     RequestType = RequestType.Response,
@@ -367,23 +450,32 @@ namespace Borlay.Protocol
                     RezervedFlag = 0,
                 };
 
-                protocolConverter.Apply(sendBuffer, ref index, converterHeaderContext);
-                protocolConverter.ApplyHeader(sendBuffer, ref index, header);
+                var dataDataContext = new DataContext()
+                {
+                    DataFlag = DataFlag.Data,
+                    Data = response,
+                };
 
-                var dataStartIndex = index;
 
-                protocolConverter.ApplyData(sendBuffer, ref index, response);
+                var index = PrepareSendData(sendBuffer, requestHeader, dataDataContext);
 
-                sendBuffer.InsertLength(index - 2);
+                //protocolConverter.Apply(sendBuffer, ref index, converterHeaderContext);
+                //protocolConverter.ApplyHeader(sendBuffer, ref index, header);
 
-                if (cache && requestKeyCache.TryRemoveRequestKey(requestId, out var key) && canBeCached)
-                    dataCache.AddData(key, sendBuffer, dataStartIndex, index - dataStartIndex);
+                //var dataStartIndex = index;
+
+                //protocolConverter.ApplyData(sendBuffer, ref index, response);
+
+                //sendBuffer.InsertLength(index - 2);
+
+                //if (cache && requestKeyCache.TryRemoveRequestKey(requestId, out var key) && canBeCached)
+                //    dataCache.AddData(key, sendBuffer, dataStartIndex, index - dataStartIndex);
 
                 packetStream.WritePacket(sendBuffer, (ushort)index, false);
             }
             catch (Exception e)
             {
-                requestKeyCache.RemoveRequestKey(requestId);
+                //requestKeyCache.RemoveRequestKey(requestId);
                 OnClosed(e);
                 throw;
             }
@@ -394,40 +486,40 @@ namespace Borlay.Protocol
             }
         }
 
-        public virtual async void SendResponse(int requestId, byte[] response, bool canBeCached)
-        {
-            Monitor.Enter(this);
-            try
-            {
-                ThrowClosed();
-                var index = 2;
+        //public virtual async void SendResponse(int requestId, byte[] response, bool canBeCached)
+        //{
+        //    Monitor.Enter(this);
+        //    try
+        //    {
+        //        ThrowClosed();
+        //        var index = 2;
 
-                var header = new RequestHeader()
-                {
-                    RequestId = requestId,
-                    RequestType = RequestType.Response,
-                    CanBeCached = canBeCached,
-                    RezervedFlag = 0,
-                };
+        //        var header = new RequestHeader()
+        //        {
+        //            RequestId = requestId,
+        //            RequestType = RequestType.Response,
+        //            CanBeCached = canBeCached,
+        //            RezervedFlag = 0,
+        //        };
 
-                protocolConverter.Apply(sendBuffer, ref index, converterHeaderContext);
-                protocolConverter.ApplyHeader(sendBuffer, ref index, header);
+        //        protocolConverter.Apply(sendBuffer, ref index, converterHeaderContext);
+        //        protocolConverter.ApplyHeader(sendBuffer, ref index, header);
 
-                sendBuffer.AddBytes(response, ref index);
-                sendBuffer.InsertLength(index - 2);
+        //        sendBuffer.AddBytes(response, ref index);
+        //        sendBuffer.InsertLength(index - 2);
 
-                packetStream.WritePacket(sendBuffer, (ushort)index, false);
-            }
-            catch (Exception e)
-            {
-                OnClosed(e);
-                throw;
-            }
-            finally
-            {
-                Monitor.Exit(this);
-            }
-        }
+        //        packetStream.WritePacket(sendBuffer, (ushort)index, false);
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        OnClosed(e);
+        //        throw;
+        //    }
+        //    finally
+        //    {
+        //        Monitor.Exit(this);
+        //    }
+        //}
 
 
         public virtual T ValidateResponse<T>(object response, bool throwOnEmpty)

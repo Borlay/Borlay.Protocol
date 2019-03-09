@@ -1,6 +1,7 @@
 ﻿using Borlay.Handling;
 using Borlay.Handling.Notations;
 using Borlay.Injection;
+using Borlay.Protocol.Converters;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,9 +15,9 @@ namespace Borlay.Protocol
 {
     public class ProtocolHandler<TActAs> : IInterfaceHandler
     {
-        private readonly TypeInfo actAsType;
-        private readonly IRequestAsync requestAsync;
-        private readonly Dictionary<string, MethodMetadata[]> methods = new Dictionary<string, MethodMetadata[]>();
+        protected readonly TypeInfo actAsType;
+        protected readonly IRequestAsync requestAsync;
+        protected readonly Dictionary<string, MethodMetadata[]> methods = new Dictionary<string, MethodMetadata[]>();
 
         public bool IsAsync => true;
 
@@ -44,8 +45,11 @@ namespace Borlay.Protocol
                     var types = parameters.Select(p => p.ParameterType).ToArray();
                     var actionAttr = m.GetCustomAttribute<ActionAttribute>(true);
 
-                    var index = -1;
+                    //var index = -1;
                     var ctIndex = -1;
+
+                    var argumentIndexes = new List<int>();
+                    var argumentTypes = new List<Type>();
 
                     for (var i = 0; i < parameters.Length; i++)
                     {
@@ -61,7 +65,10 @@ namespace Borlay.Protocol
                             &&
                             !typeof(IResolver).GetTypeInfo().IsAssignableFrom(param.ParameterType)
                         )
-                            index = i;
+                        {
+                            argumentIndexes.Add(i);
+                            argumentTypes.Add(type);
+                        }
 
                         if (type == typeof(CancellationToken))
                             ctIndex = i;
@@ -74,15 +81,17 @@ namespace Borlay.Protocol
                     var meta = new MethodMetadata()
                     {
                         ParameterTypes = types,
-                        ArgumentIndex = index,
-                        ArgumentType = types[index],
+                        ArgumentIndexes = argumentIndexes.ToArray(),
+                        ArgumentTypes = argumentTypes.ToArray(),
                         CancellationIndex = ctIndex,
                         ReturnType = m.ReturnType,
                         ActionMeta = actionAttr,
                         TaskCompletionSourceType = tcsGenType
                     };
                     return meta;
-                }).Where(m => m.ArgumentIndex >= 0).ToArray();
+                })
+                //.Where(m => m.ArgumentIndex >= 0)
+                .ToArray();
 
                 methods.Add(g.Key, methodMeta);
             }
@@ -97,8 +106,16 @@ namespace Borlay.Protocol
             if (!methods.TryGetValue(methodName, out var methodMetadatas))
                 throw new KeyNotFoundException($"Method for name '{methodName}' not found");
 
+            Func<Type[], bool> equal = (types) =>
+            {
+                for (int i = 0; i < args.Length; i++)
+                    if (args[i].GetType() != types[i])
+                        return false;
+                return true;
+            };
+
             var metaData = methodMetadatas
-                .FirstOrDefault(m => m.ParameterTypes.Length == args.Length && args[m.ArgumentIndex].GetType() == m.ArgumentType);
+                .FirstOrDefault(m => m.ParameterTypes.Length == args.Length && equal(m.ParameterTypes));
 
             if(metaData == null)
                 throw new KeyNotFoundException($"Method for name '{methodName}' not found");
@@ -116,8 +133,25 @@ namespace Borlay.Protocol
 
             stop = ProtocolWatch.Start("handle-send-request");
 
-            var result = requestAsync.SendRequestAsync(metaData.ActionMeta, args[metaData.ArgumentIndex], false, cancellationToken);
-            //var r = result.Result;
+            var actionDataContext = new DataContext()
+            {
+                DataFlag = DataFlag.Action,
+                Data = metaData.ActionMeta.GetActionId(),
+            };
+
+            var argumentContexts = new DataContext[metaData.ArgumentIndexes.Length + 1]; // { actionDataContext, dataDataContext };
+
+            argumentContexts[0] = actionDataContext;
+            for (int i = 0; i < metaData.ArgumentIndexes.Length; i++)
+            {
+                argumentContexts[i + 1] = new DataContext()
+                {
+                    DataFlag = DataFlag.Data,
+                    Data = args[metaData.ArgumentIndexes[i]],
+                };
+            }
+
+            var result = requestAsync.SendRequestAsync(argumentContexts, cancellationToken);
             stop();
             stop = ProtocolWatch.Start("handle-async");
 
@@ -125,8 +159,6 @@ namespace Borlay.Protocol
             var tcs = Activator.CreateInstance(tcsType);
 
             
-
-
             result.ContinueWith(t =>
             {
                 try
@@ -170,16 +202,9 @@ namespace Borlay.Protocol
                 }
             });
 
-            //tcsType
-            //    .GetRuntimeMethod("TrySetResult", tcsType.GenericTypeArguments)
-            //    .Invoke(tcs, new object[] { null });
-
             var task = tcsType.GetRuntimeMethod("get_Task", new Type[0]).Invoke(tcs, null);
 
             stop();
-
-            //((Task)task).Wait();
-
             watch.Stop();
             ts += (int)watch.Elapsed.Ticks;
 
@@ -193,11 +218,11 @@ namespace Borlay.Protocol
 
         public IActionMeta ActionMeta { get; set; }
 
-        public int ArgumentIndex { get; set; }
+        public int[] ArgumentIndexes { get; set; }
+
+        public Type[] ArgumentTypes { get; set; }
 
         public int CancellationIndex { get; set; }
-
-        public Type ArgumentType { get; set; }
 
         public Type ReturnType { get; set; }
 

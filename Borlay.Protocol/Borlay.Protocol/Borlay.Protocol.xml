@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Borlay.Protocol</name>
+    </assembly>
+    <members>
+        <member name="M:Borlay.Protocol.ProtocolStream.SetBufferSize(System.Int32)">
+            <summary>
+            Set send and read buffers size. This method is not thread safe.
+            </summary>
+            <param name="length">Buffer size</param>
+        </member>
+    </members>
+</doc>

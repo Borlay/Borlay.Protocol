@@ -12,9 +12,13 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DocumentationFile>F:\github\Borlay.Protocol\Borlay.Protocol\Borlay.Protocol\Borlay.Protocol.xml</DocumentationFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Borlay.Arrays" Version="1.0.0" />
-    <PackageReference Include="Borlay.Handling" Version="1.0.0" />
+    <PackageReference Include="Borlay.Handling" Version="1.0.3" />
     <PackageReference Include="Borlay.Injection" Version="1.0.0" />
     <PackageReference Include="Borlay.Serialization" Version="1.0.0" />
   </ItemGroup>

@@ -63,5 +63,29 @@ namespace Borlay.Protocol.Converters
 
             return dataContext;
         }
+
+        public bool TryResolve(byte[] source, ref int index, DataFlag flag, out DataContext dataContext)
+        {
+            dataContext = null;
+            var dataFlag = (DataFlag)source[index];
+            if(dataFlag != flag)
+                return false;
+
+            index++;
+            var serializerType = source[index++];
+
+            if (serializerType != serializer.SerializerType)
+                throw new NotSupportedException($"Serializer of type '{serializerType}' is not supported");
+
+            var data = serializer.GetObject(source, ref index);
+
+            dataContext = new DataContext()
+            {
+                Data = data,
+                DataFlag = dataFlag,
+            };
+
+            return true;
+        }
     }
 }
