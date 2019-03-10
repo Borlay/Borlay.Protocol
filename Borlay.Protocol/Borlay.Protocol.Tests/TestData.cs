@@ -99,7 +99,7 @@ namespace Borlay.Protocol.Tests
         [IdAction(1, CanBeCached = true, CacheReceivedResponse = true)]
         Task<CalculatorResult> AddAsync(CalculatorArgument argument, CalculatorArgument argument2, [Inject]CancellationToken cancellationToken);
 
-        [NamedAction]
+        [NameAction]
         Task<CalculatorResult> Subsync(CalculatorArgument argument, [Inject]CancellationToken cancellationToken);
     }
 
@@ -108,7 +108,7 @@ namespace Borlay.Protocol.Tests
     [Role("Merge")]
     public interface IMerge
     {
-        [NamedAction]
+        [NameAction]
         Task<CalculatorResult> MergeAsync(CalculatorArgument argument, [Inject]CancellationToken cancellationToken);
     }
 
