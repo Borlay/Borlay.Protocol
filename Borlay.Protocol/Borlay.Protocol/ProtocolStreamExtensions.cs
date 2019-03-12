@@ -1,4 +1,6 @@
 ﻿using Borlay.Arrays;
+using Borlay.Handling;
+using Borlay.Injection;
 using Borlay.Protocol.Converters;
 using System.Linq;
 
@@ -36,6 +38,12 @@ namespace Borlay.Protocol
             var array = lookup[dataFlag].Select(c => c.Data).OfType<T>().ToArray();
             data = array.FirstOrDefault();
             return array.Length == 1;
+        }
+
+        public static TInterface CreateChannel<TInterface>(this IResolverSession session) where TInterface : class
+        {
+            var channel = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(session);
+            return channel;
         }
     } 
 }

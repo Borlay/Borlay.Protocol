@@ -82,7 +82,7 @@ namespace Borlay.Protocol.Tests
         public int First { get; set; }
     }
 
-    [Resolve]
+    [Resolve(Singletone = false)]
     [Handler]
     public interface ICalculator //: IMerge
     {
@@ -116,8 +116,9 @@ namespace Borlay.Protocol.Tests
     public class Calculator : ICalculator, IMerge
     {
         private readonly CalculatorParameter calculatorParameter;
+        private readonly IResolverSession resolverSession;
 
-        public Calculator(CalculatorParameter calculatorParameter)
+        public Calculator(CalculatorParameter calculatorParameter, IResolverSession resolverSession)
         {
             this.calculatorParameter = calculatorParameter;
         }

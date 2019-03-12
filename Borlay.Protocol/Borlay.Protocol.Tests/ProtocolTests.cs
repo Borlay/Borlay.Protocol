@@ -44,6 +44,11 @@ namespace Borlay.Protocol.Tests
             watch.Stop();
         }
 
+        // todo test scope
+        // todo encryption
+        // todo authentication
+        // todo inject for receive
+
         [Test]
         public async Task SocketManyConnectionTest()
         {
@@ -126,61 +131,6 @@ namespace Borlay.Protocol.Tests
             // s: 10*1k 2s
             // a: 10*1k 0.8s
             // a: 40*1k 3.3s
-        }
-
-        [Test]
-        public void ToLookupTest()
-        {
-            var watch = Stopwatch.StartNew();
-
-            for (int i = 0; i < 1000000; i++)
-            {
-
-                var dataContexts = new DataContext[5];
-
-                dataContexts[0] = new DataContext()
-                {
-                    DataFlag = DataFlag.Header,
-                    Data = null
-                };
-
-                dataContexts[1] = new DataContext()
-                {
-                    DataFlag = DataFlag.Header,
-                    Data = null
-                };
-
-                dataContexts[2] = new DataContext()
-                {
-                    DataFlag = DataFlag.Action,
-                    Data = null
-                };
-
-                dataContexts[3] = new DataContext()
-                {
-                    DataFlag = DataFlag.Data,
-                    Data = null
-                };
-
-                dataContexts[4] = new DataContext()
-                {
-                    DataFlag = DataFlag.Data,
-                    Data = null
-                };
-
-                var lookup = dataContexts.ToLookup(c => c.DataFlag);
-                var data = lookup[DataFlag.Data].ToArray();
-                var data1 = lookup[DataFlag.Data].ToArray();
-                var data2 = lookup[DataFlag.Data].ToArray();
-
-                //var data = dataContexts.Where(d => d.DataFlag == DataFlag.Data).ToArray();
-                //var data1 = dataContexts.Where(d => d.DataFlag == DataFlag.Data).ToArray();
-                //var data2 = dataContexts.Where(d => d.DataFlag == DataFlag.Data).ToArray();
-
-            }
-
-            watch.Stop();
-
         }
 
         [Test]

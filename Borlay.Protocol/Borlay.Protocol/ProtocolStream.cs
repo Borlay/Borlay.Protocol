@@ -1,6 +1,7 @@
 ﻿using Borlay.Arrays;
 using Borlay.Handling;
 using Borlay.Handling.Notations;
+using Borlay.Injection;
 using Borlay.Protocol.Converters;
 using Borlay.Protocol.Injections;
 using Borlay.Serialization;
@@ -48,6 +49,8 @@ namespace Borlay.Protocol
         public IDataInject DataInject { get; set; }
 
         public ISecurityInject SecurityInject { get; set; }
+
+        public IResolver Resolver { get; set; }
 
 
         public ProtocolStream(Stream stream, ISerializer serializer, IHandlerProvider handlerProvider)
@@ -200,7 +203,7 @@ namespace Borlay.Protocol
                     GetData = () => argumentContexts.ToLookup(c => c.DataFlag),
                 };
 
-                dataContexts = DataInject.SendData(injectContext)?.ToArray();
+                dataContexts = DataInject.SendData(Resolver, injectContext)?.ToArray();
                 converterHeader = injectContext.ConverterHeader;
                 converterHeaderContext.Data = converterHeader;
             }
@@ -227,7 +230,7 @@ namespace Borlay.Protocol
                     Length = index
                 };
 
-                SecurityInject?.SendSecurity(securityContext);
+                SecurityInject?.SendSecurity(Resolver, securityContext);
                 index = securityContext.Length;
             }
 
@@ -392,7 +395,11 @@ namespace Borlay.Protocol
             try
             {
                 var stop = ProtocolWatch.Start("rp-request-handler");
-                var response = await handler.HandleAsync(request, cancellationToken);
+                object response = null;
+                if(Resolver != null)
+                    response = await handler.HandleAsync(Resolver, request, cancellationToken);
+                else
+                    response = await handler.HandleAsync(request, cancellationToken);
                 if (response == null)
                 {
                     response = new EmptyResponse();

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Borlay.Injection;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,13 +7,31 @@ namespace Borlay.Protocol.Injections
 {
     public interface ISecurityInject
     {
-        //void SendSecurity(ConverterHeader ConverterHeader, byte[] data, int headerEndIndex, ref int index);
+        void SendSecurity(IResolver resolver, SecurityInjectContext securityInjectContext);
 
-        //void ReceiveSecurity(ConverterHeader ConverterHeader, byte[] data, int headerEndIndex, ref int index);
+        void ReceiveSecurity(IResolver resolver, SecurityInjectContext securityInjectContext);
+    }
 
-        void SendSecurity(SecurityInjectContext securityInjectContext);
+    public class ActionSecurityInjection : ISecurityInject
+    {
+        Action<IResolver, SecurityInjectContext> sendSecurity;
+        Action<IResolver, SecurityInjectContext> receiveSecurity;
 
-        void ReceiveSecurity(SecurityInjectContext securityInjectContext);
+        public ActionSecurityInjection(Action<IResolver, SecurityInjectContext> sendSecurity, Action<IResolver, SecurityInjectContext> receiveSecurity)
+        {
+            this.sendSecurity = sendSecurity;
+            this.receiveSecurity = receiveSecurity;
+        }
+
+        public void ReceiveSecurity(IResolver resolver, SecurityInjectContext securityInjectContext)
+        {
+            receiveSecurity?.Invoke(resolver, securityInjectContext);
+        }
+
+        public void SendSecurity(IResolver resolver, SecurityInjectContext securityInjectContext)
+        {
+            sendSecurity?.Invoke(resolver, securityInjectContext);
+        }
     }
 
     public class SecurityInjectContext

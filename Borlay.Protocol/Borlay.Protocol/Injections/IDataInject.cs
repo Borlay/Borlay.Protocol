@@ -9,8 +9,30 @@ namespace Borlay.Protocol.Injections
 {
     public interface IDataInject
     {
-        IEnumerable<DataContext> SendData(DataInjectContext contex);
-        Resolver ReceiveData(DataInjectContext context);
+        IEnumerable<DataContext> SendData(IResolver resolver, DataInjectContext dataInjectContext);
+        Resolver ReceiveData(IResolver resolver, DataInjectContext dataInjectContext);
+    }
+
+    public class ActionDataInject : IDataInject
+    {
+        Func<IResolver, DataInjectContext, IEnumerable<DataContext>> sendData;
+        Func<IResolver, DataInjectContext, Resolver> receiveData;
+
+        public ActionDataInject(Func<IResolver, DataInjectContext, IEnumerable<DataContext>> sendData, Func<IResolver, DataInjectContext, Resolver> receiveData)
+        {
+            this.sendData = sendData;
+            this.receiveData = receiveData;
+        }
+
+        public Resolver ReceiveData(IResolver resolver, DataInjectContext dataInjectContext)
+        {
+            return receiveData?.Invoke(resolver, dataInjectContext);
+        }
+
+        public IEnumerable<DataContext> SendData(IResolver resolver, DataInjectContext dataInjectContext)
+        {
+            return sendData?.Invoke(resolver, dataInjectContext);
+        }
     }
 
     public class DataInjectContext
