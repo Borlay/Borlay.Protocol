@@ -50,37 +50,38 @@ namespace Borlay.Protocol
 
         public ISecurityInject SecurityInject { get; set; }
 
-        public IResolver Resolver { get; set; }
+        public IResolverSession ResolverSession { get; }
 
 
-        public ProtocolStream(Stream stream, ISerializer serializer, IHandlerProvider handlerProvider)
-            : this(new PacketStream(stream), serializer, handlerProvider, new Cache())
+        public ProtocolStream(IResolverSession session, Stream stream, ISerializer serializer, IHandlerProvider handlerProvider)
+            : this(session, new PacketStream(stream), serializer, handlerProvider, new Cache())
         {
         }
 
-        public ProtocolStream(IPacketStream packetStream, ISerializer serializer, IHandlerProvider handlerProvider)
-            : this(packetStream, serializer, handlerProvider, new Cache())
+        public ProtocolStream(IResolverSession session, IPacketStream packetStream, ISerializer serializer, IHandlerProvider handlerProvider)
+            : this(session, packetStream, serializer, handlerProvider, new Cache())
         {
 
         }
 
-        public ProtocolStream(IPacketStream packetStream, ISerializer serializer, IHandlerProvider handlerProvider, ICache cache)
-            : this(packetStream, new ProtocolConverter(serializer), handlerProvider, cache)
+        public ProtocolStream(IResolverSession session, IPacketStream packetStream, ISerializer serializer, IHandlerProvider handlerProvider, ICache cache)
+            : this(session, packetStream, new ProtocolConverter(serializer), handlerProvider, cache)
         {
         }
 
-        public ProtocolStream(IPacketStream packetStream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
-            : this(packetStream, protocolConverter, handlerProvider, new Cache())
+        public ProtocolStream(IResolverSession session, IPacketStream packetStream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
+            : this(session, packetStream, protocolConverter, handlerProvider, new Cache())
         {
         }
 
-        public ProtocolStream(Stream stream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
-            : this(new PacketStream(stream), protocolConverter, handlerProvider, new Cache())
+        public ProtocolStream(IResolverSession session, Stream stream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
+            : this(session, new PacketStream(stream), protocolConverter, handlerProvider, new Cache())
         {
         }
 
-        public ProtocolStream(IPacketStream packetStream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider, ICache cache)
+        public ProtocolStream(IResolverSession session, IPacketStream packetStream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider, ICache cache)
         {
+            this.ResolverSession = session;
             this.packetStream = packetStream ?? throw new ArgumentNullException(nameof(packetStream));
             this.handlerProvider = handlerProvider ?? throw new ArgumentNullException(nameof(handlerProvider));
             //this.dataCache = cache ?? throw new ArgumentNullException(nameof(cache));
@@ -178,7 +179,7 @@ namespace Borlay.Protocol
 
         protected virtual int PrepareSendData(byte[] sendBuffer, RequestHeader requestHeader, params DataContext[] argumentContexts)
         {
-            var index = 2;
+            var index = 4;
 
             var converterHeader = this.ConverterHeader;
             var converterHeaderContext = new DataContext()
@@ -203,7 +204,7 @@ namespace Borlay.Protocol
                     GetData = () => argumentContexts.ToLookup(c => c.DataFlag),
                 };
 
-                dataContexts = DataInject.SendData(Resolver, injectContext)?.ToArray();
+                dataContexts = DataInject.SendData(ResolverSession, injectContext)?.ToArray();
                 converterHeader = injectContext.ConverterHeader;
                 converterHeaderContext.Data = converterHeader;
             }
@@ -230,11 +231,11 @@ namespace Borlay.Protocol
                     Length = index
                 };
 
-                SecurityInject?.SendSecurity(Resolver, securityContext);
+                SecurityInject?.SendSecurity(ResolverSession, securityContext);
                 index = securityContext.Length;
             }
 
-            sendBuffer.InsertLength(index - 2);
+            sendBuffer.InsertLength(index - 4);
 
             return index;
         }
@@ -287,8 +288,36 @@ namespace Borlay.Protocol
                 throw new ProtocolException(ErrorCode.VersionNotSupported);
 
 
+            if (SecurityInject != null)
+            {
+                var securityContext = new SecurityInjectContext()
+                {
+                    ConverterHeader = converterHeader,
+                    RequestHeader = requestHeader,
+                    HeaderEndIndex = index,
+                    Data = sendBuffer,
+                    Length = length
+                };
+
+                SecurityInject?.ReceiveSecurity(ResolverSession, securityContext);
+                length = securityContext.Length;
+            }
+
+
             var resolvedContexts = protocolConverter.Resolve(readBuffer, ref index, length);
             ILookup<DataFlag, DataContext> contexts = resolvedContexts.ToLookup(c => c.DataFlag);
+
+            if (DataInject != null)
+            {
+                var injectContext = new DataInjectContext()
+                {
+                    ConverterHeader = converterHeader,
+                    RequestHeader = requestHeader,
+                    GetData = () => contexts,
+                };
+
+                DataInject.ReceiveData(ResolverSession, injectContext);
+            }
 
             stop();
 
@@ -395,11 +424,7 @@ namespace Borlay.Protocol
             try
             {
                 var stop = ProtocolWatch.Start("rp-request-handler");
-                object response = null;
-                if(Resolver != null)
-                    response = await handler.HandleAsync(Resolver, request, cancellationToken);
-                else
-                    response = await handler.HandleAsync(request, cancellationToken);
+                object response = await handler.HandleAsync(ResolverSession, request, cancellationToken);
                 if (response == null)
                 {
                     response = new EmptyResponse();

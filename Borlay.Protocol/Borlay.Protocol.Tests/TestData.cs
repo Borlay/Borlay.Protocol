@@ -90,13 +90,13 @@ namespace Borlay.Protocol.Tests
         [IdAction(1, CanBeCached = true, CacheReceivedResponse = true)]
         Task<CalculatorResult> AddAsync(CalculatorArgument argument, [Inject]CancellationToken cancellationToken);
 
-        [IdAction(1, CanBeCached = true, CacheReceivedResponse = true)]
+        [IdAction(2, CanBeCached = true, CacheReceivedResponse = true)]
         Task<CalculatorResult> AddAsync(string argument);
 
-        [IdAction(1, CanBeCached = true, CacheReceivedResponse = true)]
+        [IdAction(2, CanBeCached = true, CacheReceivedResponse = true)]
         Task<CalculatorResult> AddAsync();
 
-        [IdAction(1, CanBeCached = true, CacheReceivedResponse = true)]
+        [IdAction(2, CanBeCached = true, CacheReceivedResponse = true)]
         Task<CalculatorResult> AddAsync(CalculatorArgument argument, CalculatorArgument argument2, [Inject]CancellationToken cancellationToken);
 
         [NameAction]
@@ -118,7 +118,7 @@ namespace Borlay.Protocol.Tests
         private readonly CalculatorParameter calculatorParameter;
         private readonly IResolverSession resolverSession;
 
-        public Calculator(CalculatorParameter calculatorParameter, IResolverSession resolverSession)
+        public Calculator(CalculatorParameter calculatorParameter)
         {
             this.calculatorParameter = calculatorParameter;
         }

@@ -120,7 +120,7 @@ namespace Borlay.Protocol.Tests
             var read_packet = ProtocolWatch.GetTimestamp("read-packet");
             var after_queue = ProtocolWatch.GetTimestamp("after-queue");
 
-            var request_handler = ProtocolWatch.GetTimestamp("request-handler");
+            var request_handler = ProtocolWatch.GetTimestamp("rp-request-handler");
 
             var handle_async = ProtocolWatch.GetTimestamp("handle-async");
             var handle_send_request = ProtocolWatch.GetTimestamp("handle-send-request");
@@ -211,51 +211,52 @@ namespace Borlay.Protocol.Tests
             var resolver1 = GetProtocolResolver(tcpClient.GetStream());
             var resolver2 = GetProtocolResolver(tcpServer.GetStream());
 
-            resolver1.Register(new CalculatorParameter() { First = 10 });
-            resolver2.Register(new CalculatorParameter() { First = 10 });
+            resolver1.Resolver.Register(new CalculatorParameter() { First = 10 });
+            resolver2.Resolver.Register(new CalculatorParameter() { First = 10 });
 
-            var calculator1 = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(resolver1.CreateSession());
-            var calculator2 = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(resolver2.CreateSession());
+            var calculator1 = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(resolver1);
+            var calculator2 = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(resolver2);
 
             return new TInterface[] { calculator1, calculator2 };
 
         }
 
-        public Resolver GetProtocolResolver(Stream stream)
+        public IResolverSession GetProtocolResolver(Stream stream)
         {
             return GetProtocolResolver(new PacketStream(stream), CancellationToken.None);
         }
 
-        public Resolver GetProtocolResolver(Stream stream, CancellationToken cancellationToken)
+        public IResolverSession GetProtocolResolver(Stream stream, CancellationToken cancellationToken)
         {
             return GetProtocolResolver(new PacketStream(stream), cancellationToken);
         }
 
-        public Resolver GetProtocolResolver(IPacketStream packetStream)
+        public IResolverSession GetProtocolResolver(IPacketStream packetStream)
         {
             return GetProtocolResolver(packetStream, CancellationToken.None);
         }
 
-        public Resolver GetProtocolResolver(IPacketStream packetStream, CancellationToken cancellationToken)
+        public IResolverSession GetProtocolResolver(IPacketStream packetStream, CancellationToken cancellationToken)
         {
             var resolver = new Resolver();
             resolver.LoadFromReference<ProtocolTests>();
+            var session = resolver.CreateSession();
 
-            var handler = new HandlerProvider(resolver);
+            var handler = new HandlerProvider();
             handler.LoadFromReference<ProtocolTests>();
 
             var converter = new Serializer();
             converter.LoadFromReference<ProtocolTests>();
 
-            var protocol = new ProtocolStream(packetStream, converter, handler);
+            var protocol = new ProtocolStream(session, packetStream, converter, handler);
 
-            resolver.Register(protocol);
-            resolver.Register(handler);
-            resolver.Register(converter);
+            session.Resolver.Register(protocol);
+            session.Resolver.Register(handler);
+            session.Resolver.Register(converter);
 
             var listenTask = protocol.ListenAsync(cancellationToken);
 
-            return resolver;
+            return session;
         }
 
         [Test]

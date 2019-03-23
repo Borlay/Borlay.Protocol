@@ -13,8 +13,8 @@ namespace Borlay.Protocol
 {
     public class ProtocolHost
     {
-        public event Action<ProtocolHost, IResolver, IResolverSession> ClientConnected = (h, r, s) => { };
-        public event Action<ProtocolHost, IResolver, IResolverSession, AggregateException> ClientDisconnected = (h, r, s, e) => { };
+        public event Action<ProtocolHost, IResolverSession, bool> ClientConnected = (h, s, c) => { };
+        public event Action<ProtocolHost, IResolverSession, bool, AggregateException> ClientDisconnected = (h, s, c, e) => { };
         public event Action<ProtocolHost, Exception> Exception = (h, e) => { };
 
         private Resolver resolver;
@@ -36,12 +36,7 @@ namespace Borlay.Protocol
             resolver = new Resolver(parent);
         }
 
-        public Task StartServerAsync(string ipString, int port, CancellationToken cancellationToken)
-        {
-            return StartServerAsync(ipString, port, true, cancellationToken);
-        }
-
-        public async Task StartServerAsync(string ipString, int port, bool keepSession, CancellationToken cancellationToken)
+        public async Task StartServerAsync(string ipString, int port, CancellationToken cancellationToken)
         {
             if (!initialized)
                 throw new Exception($"Call InitializeFromReference first");
@@ -56,15 +51,20 @@ namespace Borlay.Protocol
                     do
                     {
                         var client = await listener.AcceptTcpClientAsync();
-                        var localResolver = new Resolver(resolver);
-                        localResolver.Register(() => new Tuple<TcpClient, Action>(client, () => client.Dispose()));
-                        var session = localResolver.CreateSession();
                         try
                         {
-                            var listenTask = ClientListenAsync(localResolver, session, keepSession, cancellationToken);
+                            var session = resolver.CreateSession();
+                            session.Resolver.Register(client, false);
+                            session.Resolver.AddDisposable(client);
+                            var listenTask = ClientListenAsync(client, session, false, cancellationToken);
                         }
                         catch
                         {
+                            try
+                            {
+                                client.Dispose();
+                            }
+                            catch { };
                         }
                     } while (!cancellationToken.IsCancellationRequested);
                 }
@@ -80,46 +80,38 @@ namespace Borlay.Protocol
             return StartClientAsync(host, port, CancellationToken.None);
         }
 
-        public Task<IResolverSession> StartClientAsync(string host, int port, CancellationToken cancellationToken)
-        {
-            return StartClientAsync(host, port, true, cancellationToken);
-        }
-
-        public async Task<IResolverSession> StartClientAsync(string host, int port, bool keepSession, CancellationToken cancellationToken)
+        public async Task<IResolverSession> StartClientAsync(string host, int port, CancellationToken cancellationToken)
         {
             if (!initialized)
                 throw new Exception($"Call InitializeFromReference first");
 
-            var tcpClient = new TcpClient();
-            var localResolver = new Resolver(resolver);
-            localResolver.Register(() => new Tuple<TcpClient, Action>(tcpClient, () => tcpClient.Dispose()));
+            var client = new TcpClient();
+            var session = resolver.CreateSession();
+            session.Resolver.Register(client, false);
+            session.Resolver.AddDisposable(client);
+            // todo add to dispose
+            //var localResolver = new Resolver(resolver);
+            //localResolver.Register((s) => new Tuple<TcpClient, Action>(tcpClient, null));
 
-            var session = localResolver.CreateSession();
+            //var session = localResolver.CreateSession();
 
-            var client = session.Resolve<TcpClient>();
             await client.ConnectAsync(host, port);
-
-            var task = ClientListenAsync(localResolver, session, keepSession, cancellationToken);
+            var task = ClientListenAsync(client, session, true, cancellationToken);
 
             return session;
         }
 
-        protected Task ClientListenAsync(Resolver localResolver, IResolverSession session, bool keepSession, CancellationToken cancellationToken)
+        protected Task ClientListenAsync(TcpClient client, IResolverSession session, bool isClient, CancellationToken cancellationToken)
         {
             try
             {
-                var client = session.Resolve<TcpClient>();
                 var packetStream = new PacketStream(client.GetStream());
-                var protocol = new ProtocolStream(packetStream, converter, handler);
+                var protocol = new ProtocolStream(session, packetStream, converter, handler);
 
-                localResolver.Register(protocol);
-                protocol.Resolver = localResolver;
+                session.Resolver.Register(protocol);
 
 
-                if (keepSession)
-                    localResolver.Register(session);
-
-                ClientConnected(this, localResolver, session);
+                ClientConnected(this, session, isClient);
 
 
                 var listenTask = protocol.ListenAsync(cancellationToken);
@@ -128,7 +120,7 @@ namespace Borlay.Protocol
                 {
                     try
                     {
-                        ClientDisconnected(this, localResolver, session, t.Exception);
+                        ClientDisconnected(this, session, isClient, t.Exception);
                     }
                     catch(Exception e)
                     {
@@ -170,7 +162,7 @@ namespace Borlay.Protocol
             
             resolver.LoadFromReference<T>();
 
-            handler = new HandlerProvider(resolver);
+            handler = new HandlerProvider();
             handler.LoadFromReference<T>();
 
             converter = new Serializer();

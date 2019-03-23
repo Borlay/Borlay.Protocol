@@ -9,19 +9,26 @@ using System.Threading.Tasks;
 
 namespace Borlay.Protocol.Tests
 {
-    public class ProtocolInjectionTests
+    public class ProtocolHostTests
     {
         [Test]
-        public async Task CacheTest()
+        public async Task HostAndCreateChannel()
         {
-            // update resolver after session fixes
-            // also in handler project
-            // localResolver try dispose
+            // todo localResolver try dispose
+            // todo iject
+            // todo add resolver to session as session resolver with parent ()
+            // todo visur paduoti sesija (i handleri ir t.t), greiciausiai ne nes rizika naudoti sesija for db
 
             var host = new ProtocolHost();
-            host.InitializeFromReference<ProtocolInjectionTests>();
+            host.InitializeFromReference<ProtocolHostTests>();
             host.Resolver.Register(new CalculatorParameter() { First = 10 });
-            var serverTask = host.StartServerAsync("127.0.0.1", 90, true, CancellationToken.None);
+            
+            var serverTask = host.StartServerAsync("127.0.0.1", 90, CancellationToken.None);
+
+            host.ClientDisconnected += (h, s, c , e) =>
+            {
+                var isClient = c;
+            };
 
             using (var session = await host.StartClientAsync("127.0.0.1", 90))
             {
@@ -31,6 +38,8 @@ namespace Borlay.Protocol.Tests
 
                 Assert.AreEqual(19, result.Result);
             }
+
+            await serverTask;
         }
     }
 }

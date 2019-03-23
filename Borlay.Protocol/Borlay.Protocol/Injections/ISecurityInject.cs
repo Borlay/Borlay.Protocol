@@ -7,30 +7,30 @@ namespace Borlay.Protocol.Injections
 {
     public interface ISecurityInject
     {
-        void SendSecurity(IResolver resolver, SecurityInjectContext securityInjectContext);
+        void SendSecurity(IResolverSession session, SecurityInjectContext securityInjectContext);
 
-        void ReceiveSecurity(IResolver resolver, SecurityInjectContext securityInjectContext);
+        void ReceiveSecurity(IResolverSession session, SecurityInjectContext securityInjectContext);
     }
 
     public class ActionSecurityInjection : ISecurityInject
     {
-        Action<IResolver, SecurityInjectContext> sendSecurity;
-        Action<IResolver, SecurityInjectContext> receiveSecurity;
+        Action<IResolverSession, SecurityInjectContext> sendSecurity;
+        Action<IResolverSession, SecurityInjectContext> receiveSecurity;
 
-        public ActionSecurityInjection(Action<IResolver, SecurityInjectContext> sendSecurity, Action<IResolver, SecurityInjectContext> receiveSecurity)
+        public ActionSecurityInjection(Action<IResolverSession, SecurityInjectContext> sendSecurity, Action<IResolverSession, SecurityInjectContext> receiveSecurity)
         {
             this.sendSecurity = sendSecurity;
             this.receiveSecurity = receiveSecurity;
         }
 
-        public void ReceiveSecurity(IResolver resolver, SecurityInjectContext securityInjectContext)
+        public void ReceiveSecurity(IResolverSession session, SecurityInjectContext securityInjectContext)
         {
-            receiveSecurity?.Invoke(resolver, securityInjectContext);
+            receiveSecurity?.Invoke(session, securityInjectContext);
         }
 
-        public void SendSecurity(IResolver resolver, SecurityInjectContext securityInjectContext)
+        public void SendSecurity(IResolverSession session, SecurityInjectContext securityInjectContext)
         {
-            sendSecurity?.Invoke(resolver, securityInjectContext);
+            sendSecurity?.Invoke(session, securityInjectContext);
         }
     }
 

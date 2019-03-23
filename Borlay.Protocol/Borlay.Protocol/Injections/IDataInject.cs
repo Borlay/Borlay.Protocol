@@ -9,29 +9,29 @@ namespace Borlay.Protocol.Injections
 {
     public interface IDataInject
     {
-        IEnumerable<DataContext> SendData(IResolver resolver, DataInjectContext dataInjectContext);
-        Resolver ReceiveData(IResolver resolver, DataInjectContext dataInjectContext);
+        IEnumerable<DataContext> SendData(IResolverSession session, DataInjectContext dataInjectContext);
+        void ReceiveData(IResolverSession session, DataInjectContext dataInjectContext);
     }
 
     public class ActionDataInject : IDataInject
     {
-        Func<IResolver, DataInjectContext, IEnumerable<DataContext>> sendData;
-        Func<IResolver, DataInjectContext, Resolver> receiveData;
+        Func<IResolverSession, DataInjectContext, IEnumerable<DataContext>> sendData;
+        Action<IResolverSession, DataInjectContext> receiveData;
 
-        public ActionDataInject(Func<IResolver, DataInjectContext, IEnumerable<DataContext>> sendData, Func<IResolver, DataInjectContext, Resolver> receiveData)
+        public ActionDataInject(Func<IResolverSession, DataInjectContext, IEnumerable<DataContext>> sendData, Action<IResolverSession, DataInjectContext> receiveData)
         {
             this.sendData = sendData;
             this.receiveData = receiveData;
         }
 
-        public Resolver ReceiveData(IResolver resolver, DataInjectContext dataInjectContext)
+        public void ReceiveData(IResolverSession session, DataInjectContext dataInjectContext)
         {
-            return receiveData?.Invoke(resolver, dataInjectContext);
+            receiveData?.Invoke(session, dataInjectContext);
         }
 
-        public IEnumerable<DataContext> SendData(IResolver resolver, DataInjectContext dataInjectContext)
+        public IEnumerable<DataContext> SendData(IResolverSession session, DataInjectContext dataInjectContext)
         {
-            return sendData?.Invoke(resolver, dataInjectContext);
+            return sendData?.Invoke(session, dataInjectContext);
         }
     }
 

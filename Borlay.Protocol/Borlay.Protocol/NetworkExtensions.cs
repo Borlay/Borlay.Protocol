@@ -42,7 +42,7 @@ namespace Borlay.Protocol
             await stream.WriteAsync(bytes, 0, bytes.Length, cancellationToken);
         }
 
-        public static Task WritePacketAsync(this Stream stream, byte[] bytes, ushort count, bool addCount, CancellationToken cancellationToken)
+        public static Task WritePacketAsync(this Stream stream, byte[] bytes, int count, bool addCount, CancellationToken cancellationToken)
         {
             return Task.Factory.StartNew(() =>
             {
@@ -50,17 +50,17 @@ namespace Borlay.Protocol
             }, cancellationToken);
         }
 
-        public static void WritePacket(this Stream stream, byte[] bytes, ushort count, bool addCount)
+        public static void WritePacket(this Stream stream, byte[] bytes, int count, bool addCount)
         {
             if (addCount)
             {
-                var countBytes = ByteArrayExtensions.GetBytes((ushort)count);
+                var countBytes = ByteArrayExtensions.GetBytes((int)count);
 
-                var arr = new byte[count + 2];
-                Array.Copy(countBytes, arr, 2);
-                Array.Copy(bytes, 0, arr, 2, count);
+                var arr = new byte[count + 4];
+                Array.Copy(countBytes, arr, 4);
+                Array.Copy(bytes, 0, arr, 4, count);
 
-                stream.Write(arr, 0, count + 2);
+                stream.Write(arr, 0, count + 4);
             }
             else
             {
@@ -72,8 +72,8 @@ namespace Borlay.Protocol
         {
             return Task.Factory.StartNew<int>(() =>
             {
-                ReadPacket(stream, buffer, 2, cancellationToken);
-                var length = buffer.GetValue<ushort>(2, 0);
+                ReadPacket(stream, buffer, 4, cancellationToken);
+                var length = buffer.GetValue<int>(4, 0);
                 ReadPacket(stream, buffer, length, cancellationToken);
 
                 return length;
@@ -91,8 +91,8 @@ namespace Borlay.Protocol
 
         public static int ReadPacket(this Stream stream, byte[] buffer, CancellationToken cancellationToken)
         {
-            ReadPacket(stream, buffer, 2, cancellationToken);
-            var length = buffer.GetValue<ushort>(2, 0);
+            ReadPacket(stream, buffer, 4, cancellationToken);
+            var length = buffer.GetValue<int>(4, 0);
             ReadPacket(stream, buffer, length, cancellationToken);
             return length;
         }

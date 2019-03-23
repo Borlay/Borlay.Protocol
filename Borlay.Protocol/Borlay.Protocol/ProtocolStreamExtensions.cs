@@ -10,7 +10,7 @@ namespace Borlay.Protocol
     {
         public static void InsertLength(this byte[] bytes, int length)
         {
-            bytes.AddBytes<ushort>((ushort)length, 2, 0);
+            bytes.AddBytes<int>((int)length, 4, 0);
         }
 
         public static T[] Resolve<T>(this ILookup<DataFlag, DataContext> lookup, DataFlag dataFlag)
