@@ -1,5 +1,5 @@
 # Borlay.Protocol
-Fast protocol with data serialization. On my laptop it handles more than 10k request per second, it's couple times faster than WCF or .Net Core Rest service. Data serialization are very fast and compact.
+Fast protocol with data serialization. On my laptop it handles more than 10k request per second, it's couple times faster than WCF or .Net Core Rest service. And Data serialization is very compact.
 
 ## Example
 
