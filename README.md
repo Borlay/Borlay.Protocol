@@ -33,10 +33,10 @@ using (var session = await host.StartClientAsync("127.0.0.1", 90))
     Assert.AreEqual(19, result.Result);
 }
 
-here are interface and implementation:
-[test data](https://github.com/Borlay/Borlay.Protocol/blob/master/Borlay.Protocol/Borlay.Protocol.Tests/TestData.cs)
-
 ```
+
+# Example interface and implementation:
+[test data](https://github.com/Borlay/Borlay.Protocol/blob/master/Borlay.Protocol/Borlay.Protocol.Tests/TestData.cs)
 
 ## Help
 If you are interested in this project feel free to write me email or open issue
