@@ -14,11 +14,6 @@ namespace Borlay.Protocol.Tests
         [Test]
         public async Task HostAndCreateChannel()
         {
-            // todo localResolver try dispose
-            // todo iject
-            // todo add resolver to session as session resolver with parent ()
-            // todo visur paduoti sesija (i handleri ir t.t), greiciausiai ne nes rizika naudoti sesija for db
-
             var host = new ProtocolHost();
             host.InitializeFromReference<ProtocolHostTests>();
             host.Resolver.Register(new CalculatorParameter() { First = 10 });
