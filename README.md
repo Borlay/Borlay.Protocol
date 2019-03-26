@@ -1,6 +1,6 @@
 # Borlay.Protocol
 It is fast multithread duplex protocol. It's safe to send many requests at same time from one client and at the same time you can receive requests from server. 
-On my laptop it handles more than 10k request per second, it's couple times faster than WCF or .Net Core Rest service. And data serialization is very compact as well.
+On my laptop it handles more than 10k request per second, it's couple times faster than WCF or .Net Core Rest service. Redis is slower as well. And data serialization is very compact.
 
 ## Example
 
