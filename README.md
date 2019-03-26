@@ -1,5 +1,6 @@
 # Borlay.Protocol
-Fast protocol with data serialization. On my laptop it handles more than 10k request per second, it's couple times faster than WCF or .Net Core Rest service. And data serialization is very compact.
+It is fast multithread duplex protocol. It's safe to send many requests at same time from one client and at the same time you can receive requests from server. 
+On my laptop it handles more than 10k request per second, it's couple times faster than WCF or .Net Core Rest service. And data serialization is very compact as well.
 
 ## Example
 
@@ -27,10 +28,13 @@ using (var session = await host.StartClientAsync("127.0.0.1", 90))
     var calculator = session.CreateChannel<ICalculator>();
     
     // call method
-    var result = await calculator.AddAsync("9");
+    var task1 = calculator.AddAsync("5");
+    var task2 = calculator.AddAsync("9");
+    
+    await Task.WhenAll(task1, task2);
     
     // check result
-    Assert.AreEqual(19, result.Result);
+    Assert.AreEqual(19, task2.Result);
 }
 
 ```
