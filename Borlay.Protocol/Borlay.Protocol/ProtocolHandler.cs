@@ -1,4 +1,5 @@
-﻿using Borlay.Handling;
+﻿using Borlay.Arrays;
+using Borlay.Handling;
 using Borlay.Handling.Notations;
 using Borlay.Injection;
 using Borlay.Protocol.Converters;
@@ -33,21 +34,22 @@ namespace Borlay.Protocol
             typeMetaData = TypeMetaDataProvider.GetTypeMetaData<TActAs>();
         }
 
-        public object HandleAsync(string methodName, object[] args)
+        public object HandleAsync(string methodName, byte[] methodHashBytes, object[] args)
         {
+            
             var watch = Stopwatch.StartNew();
 
             var stop = ProtocolWatch.Start("handle-async");
 
-            var pTypes = args.Where(a => a != null).Select(a => a.GetType()).ToArray();
-            var metaData = typeMetaData.GetMetaData(methodName, pTypes);
+            var methodHash = new ByteArray(methodHashBytes);
+            var metaData = typeMetaData.GetMetaData(methodName, methodHash);
 
             CancellationToken cancellationToken;
             if (metaData.CancellationIndex >= 0)
                 cancellationToken = (CancellationToken)args[metaData.CancellationIndex];
             else
             {
-                var cts = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+                var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
                 cancellationToken = cts.Token;
             }
 
@@ -58,25 +60,32 @@ namespace Borlay.Protocol
             var actionDataContext = new DataContext()
             {
                 DataFlag = DataFlag.Action,
-                Data = metaData.ActionMeta.GetActionId(),
+                Data = metaData.ActionId,
             };
 
-            var additionalCount = 1;
+            var hashDataContext = new DataContext()
+            {
+                DataFlag = DataFlag.MethodHash,
+                Data = methodHash,
+            };
+
+            var additionalCount = 2;
             if (metaData.ScopeId != null)
-                additionalCount = 2;
+                additionalCount = 3;
 
             var argumentContexts = new DataContext[metaData.ArgumentIndexes.Length + additionalCount]; // { actionDataContext, dataDataContext };
 
             argumentContexts[0] = actionDataContext;
+            argumentContexts[1] = hashDataContext;
             if (metaData.ScopeId != null)
             {
-                argumentContexts[1] = new DataContext()
+                argumentContexts[2] = new DataContext()
                 {
                     DataFlag = DataFlag.Scope,
                     Data = metaData.ScopeId
                 };
             }
-                
+ 
             for (int i = 0; i < metaData.ArgumentIndexes.Length; i++)
             {
                 argumentContexts[i + additionalCount] = new DataContext()
@@ -154,21 +163,21 @@ namespace Borlay.Protocol
 
     public static class TypeMetaDataProvider
     {
-        private readonly static ConcurrentDictionary<TypeInfo, TypeMetaData> typeMetaDatas = new ConcurrentDictionary<TypeInfo, TypeMetaData>();
+        private readonly static ConcurrentDictionary<Type, TypeMetaData> typeMetaDatas = new ConcurrentDictionary<Type, TypeMetaData>();
 
         public static TypeMetaData GetTypeMetaData<T>()
         {
-            var typeInfo = typeof(T).GetTypeInfo();
-            return GetTypeMetaData(typeInfo);
+            var type = typeof(T);
+            return GetTypeMetaData(type);
         }
 
-        public static TypeMetaData GetTypeMetaData(TypeInfo typeInfo)
+        public static TypeMetaData GetTypeMetaData(Type type)
         {
-            if (typeMetaDatas.TryGetValue(typeInfo, out var typeMetaData))
+            if (typeMetaDatas.TryGetValue(type, out var typeMetaData))
                 return typeMetaData;
 
-            typeMetaData = new TypeMetaData(typeInfo);
-            typeMetaDatas[typeInfo] = typeMetaData;
+            typeMetaData = new TypeMetaData(type);
+            typeMetaDatas[type] = typeMetaData;
             return typeMetaData;
         }
 
@@ -176,17 +185,14 @@ namespace Borlay.Protocol
 
     public class TypeMetaData
     {
-        protected readonly TypeInfo typeInfo;
-        protected readonly Dictionary<string, MethodMetadata[]> methods = new Dictionary<string, MethodMetadata[]>();
+        protected readonly Dictionary<string, Dictionary<ByteArray, MethodMetadata>> methods = new Dictionary<string, Dictionary<ByteArray, MethodMetadata>>();
 
-        public TypeMetaData(TypeInfo type)
+        public TypeMetaData(Type type)
         {
-            this.typeInfo = type;
-
-            var methodGroups = typeInfo.GetMethods()
+            var methodGroups = type.GetInterfacesMethods().Distinct()
                 .Where(m => m.GetCustomAttribute<ActionAttribute>(true) != null).GroupBy(m => m.Name);
 
-            var classScopeAttr = this.typeInfo.GetCustomAttribute<ScopeAttribute>(true);
+            var classScopeAttr = type.GetTypeInfo().GetCustomAttribute<ScopeAttribute>(true);
 
             foreach (var g in methodGroups)
             {
@@ -229,6 +235,8 @@ namespace Borlay.Protocol
                             ctIndex = i;
                     }
 
+                    var methodHash = TypeHasher.GetMethodHash(argumentTypes.ToArray(), m.ReturnType);
+
                     var tcsType = typeof(TaskCompletionSource<>);
                     var retType = m.ReturnType.GenericTypeArguments.FirstOrDefault() ?? typeof(bool);
                     var tcsGenType = tcsType.MakeGenericType(retType);
@@ -240,35 +248,25 @@ namespace Borlay.Protocol
                         ArgumentTypes = argumentTypes.ToArray(),
                         CancellationIndex = ctIndex,
                         ReturnType = m.ReturnType,
-                        ActionMeta = actionAttr,
+                        ActionId = actionAttr?.GetActionId(),
                         ScopeId = methodScopeAttr?.GetScopeId(),
+                        MethodHash = methodHash,
                         TaskCompletionSourceType = tcsGenType
                     };
                     return meta;
                 })
-                .ToArray();
+                .ToDictionary(m => m.MethodHash);
 
                 methods.Add(g.Key, methodMeta);
             }
         }
 
-        public MethodMetadata GetMetaData(string methodName, Type[] types)
+        public MethodMetadata GetMetaData(string methodName, ByteArray methodHash)
         {
             if (!methods.TryGetValue(methodName, out var methodMetadatas))
                 throw new KeyNotFoundException($"Method for name '{methodName}' not found");
 
-            Func<Type[], bool> equal = (_types) =>
-            {
-                for (int i = 0; i < types.Length; i++)
-                    if (types[i] != _types[i])
-                        return false;
-                return true;
-            };
-
-            var metaData = methodMetadatas
-                .FirstOrDefault(m => m.ParameterTypes.Length == types.Length && equal(m.ParameterTypes));
-
-            if (metaData == null)
+            if (!methodMetadatas.TryGetValue(methodHash, out var metaData))
                 throw new KeyNotFoundException($"Method for name '{methodName}' not found");
 
             return metaData;
@@ -280,7 +278,9 @@ namespace Borlay.Protocol
     {
         public Type[] ParameterTypes { get; set; }
 
-        public IActionMeta ActionMeta { get; set; }
+        public ByteArray MethodHash { get; set; }
+
+        public object ActionId { get; set; }
 
         public object ScopeId { get; set; }
 

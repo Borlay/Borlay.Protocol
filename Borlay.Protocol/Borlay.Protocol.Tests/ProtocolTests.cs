@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,6 +27,17 @@ namespace Borlay.Protocol.Tests
         [Test]
         public void CacheTest()
         {
+
+            var taks = new Task<ProtocolTests>[] { new Task<ProtocolTests>(() => null) };
+
+            var type = taks.GetType();
+            var fullName = type.Name;
+            //var genericType = type.GetGenericTypeDefinition();
+            //var genericFullname = genericType.FullName;
+            //var gt = type.GenericTypeArguments[0];
+            //var gf = gt.FullName;
+            var element = type.GetElementType()?.FullName;
+
             var cache = new Cache();
 
             var watch = Stopwatch.StartNew();
@@ -52,7 +64,7 @@ namespace Borlay.Protocol.Tests
         [Test]
         public async Task SocketManyConnectionTest()
         {
-            TcpListener listener = new TcpListener(90);
+            TcpListener listener = new TcpListener(100);
             listener.Start();
 
             List<ICalculator> calculators = new List<ICalculator>();
@@ -136,7 +148,7 @@ namespace Borlay.Protocol.Tests
         [Test]
         public async Task SocketAddTest()
         {
-            TcpListener listener = new TcpListener(90);
+            TcpListener listener = new TcpListener(102);
             listener.Start();
 
             var calculators = await GetConnections<ICalculator>(listener, CancellationToken.None);
@@ -151,7 +163,7 @@ namespace Borlay.Protocol.Tests
         [Test]
         public async Task SocketAddDuoTest()
         {
-            TcpListener listener = new TcpListener(90);
+            TcpListener listener = new TcpListener(104);
             listener.Start();
 
             var calculators = await GetConnections<ICalculator>(listener, CancellationToken.None);
@@ -164,9 +176,24 @@ namespace Borlay.Protocol.Tests
         }
 
         [Test]
+        public async Task SocketAddCalcMergeTest()
+        {
+            TcpListener listener = new TcpListener(105);
+            listener.Start();
+
+            var calculators = await GetConnections<ICalculatorMerge>(listener, CancellationToken.None);
+
+            List<Task<CalculatorResult>> tasks = new List<Task<CalculatorResult>>();
+
+            var task = await calculators[0].AddAsync(new CalculatorArgument() { Left = 2, Right = 3 }, new CalculatorArgument() { Left = 4, Right = 5 }, CancellationToken.None);
+
+            Assert.AreEqual(24, task.Result);
+        }
+
+        [Test]
         public async Task SocketAddZeroTest()
         {
-            TcpListener listener = new TcpListener(90);
+            TcpListener listener = new TcpListener(101);
             listener.Start();
 
             var calculators = await GetConnections<ICalculator>(listener, CancellationToken.None);
@@ -181,7 +208,7 @@ namespace Borlay.Protocol.Tests
         [Test]
         public async Task SocketAddStringTest()
         {
-            TcpListener listener = new TcpListener(90);
+            TcpListener listener = new TcpListener(103);
             listener.Start();
 
             var calculators = await GetConnections<ICalculator>(listener, CancellationToken.None);
@@ -196,7 +223,7 @@ namespace Borlay.Protocol.Tests
         private async Task<TInterface[]> GetConnections<TInterface>(TcpListener listener, CancellationToken cancellationToken) where TInterface : class
         {
             var socketTask = listener.AcceptTcpClientAsync();
-            TcpClient tcpClient = new TcpClient("127.0.0.1", 90);
+            TcpClient tcpClient = new TcpClient("127.0.0.1", ((IPEndPoint)listener.LocalEndpoint).Port);
 
             var tcpServer = await socketTask;
 
@@ -262,11 +289,11 @@ namespace Borlay.Protocol.Tests
         [Test]
         public async Task PlainSocketTest()
         {
-            TcpListener listener = new TcpListener(90);
+            TcpListener listener = new TcpListener(106);
             listener.Start();
 
             var socketTask = listener.AcceptTcpClientAsync();
-            TcpClient tcpClient = new TcpClient("127.0.0.1", 90);
+            TcpClient tcpClient = new TcpClient("127.0.0.1", 106);
 
             var tcpServer = await socketTask;
 

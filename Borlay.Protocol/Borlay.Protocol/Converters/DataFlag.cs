@@ -8,8 +8,9 @@ namespace Borlay.Protocol.Converters
         public static readonly byte Header = 0;
         public static readonly byte Scope = 1;
         public static readonly byte Action = 2;
-        public static readonly byte Data = 3;
-        public static readonly byte Authorization = 4;
+        public static readonly byte MethodHash = 3;
+        public static readonly byte Data = 4;
+        public static readonly byte Authorization = 5;
 
         public override bool Equals(object obj)
         {

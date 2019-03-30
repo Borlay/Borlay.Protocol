@@ -378,20 +378,24 @@ namespace Borlay.Protocol
 
                 var keyStartIndex = index;
 
-                var actionId = contexts[DataFlag.Action].First().Data; //protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Action);
+                var actionId = contexts[DataFlag.Action].First()?.Data; //protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Action);
                 var scopeId = contexts[DataFlag.Scope].FirstOrDefault()?.Data;
+                var methodHash = contexts[DataFlag.MethodHash].FirstOrDefault()?.Data;
                 var request = contexts[DataFlag.Data].Select(d => d.Data).ToArray(); //protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Data);
                 var types = request.Select(r => r.GetType()).ToArray();
+
+                if (methodHash == null || !(methodHash is ByteArray mhash))
+                    throw new ProtocolException("Parameter hash is null or not ByteArray", ErrorCode.BadRequest);
 
                 //var isEmpty = IsEmptyOrError(request, false);
                 //if (isEmpty)
                 //    throw new ProtocolException(ErrorCode.UnknownRequest);
 
                 // todo add actionId
-                if(!handlerProvider.TryGetHandler(scopeId ?? "", actionId, types, out var handlerItem))
-                    throw new ProtocolException(ErrorCode.BadRequest);
+                if(!handlerProvider.TryGetHandler(scopeId ?? "", actionId ?? "", mhash, out var handlerItem))
+                    throw new ProtocolException($"Handler for scope {scopeId} action {actionId} hash {methodHash} not found", ErrorCode.BadRequest);
 
-                var actionMeta = handlerItem.ActionMeta ?? throw new ArgumentNullException(nameof(handlerItem.ActionMeta));
+                //var actionMeta = handlerItem.ActionMeta ?? throw new ArgumentNullException(nameof(handlerItem.ActionMeta));
 
                 //if (actionMeta.CanBeCached)
                 //{
@@ -410,7 +414,7 @@ namespace Borlay.Protocol
 
                 stop();
 
-                HandleRequestAsync(requestId, handlerItem, request, actionMeta.CanBeCached, cache, cancellationToken);
+                HandleRequestAsync(requestId, handlerItem, request, false /* actionMeta.CanBeCached*/ , cache, cancellationToken);
             }
             catch(Exception e)
             {

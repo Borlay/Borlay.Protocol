@@ -112,6 +112,11 @@ namespace Borlay.Protocol.Tests
         Task<CalculatorResult> MergeAsync(CalculatorArgument argument, [Inject]CancellationToken cancellationToken);
     }
 
+    public interface ICalculatorMerge : ICalculator, IMerge
+    {
+
+    }
+
 
     public class Calculator : ICalculator, IMerge
     {

@@ -6,16 +6,16 @@ namespace Borlay.Protocol.Converters
 {
     public class ProtocolConverter : IProtocolConverter
     {
-        private readonly ISerializer serializer;
+        public ISerializer Serializer { get; }
 
         public ProtocolConverter(ISerializer serializer)
         {
             if (serializer == null)
                 throw new ArgumentNullException(nameof(serializer));
 
-            this.serializer = serializer;
-            this.serializer.AddConverter<RequestHeader>(new RequestHeaderConverter(), 30501);
-            this.serializer.AddConverter<ConverterHeader>(new ConverterHeaderConverter(), 30521);
+            this.Serializer = serializer;
+            this.Serializer.AddConverter<RequestHeader>(new RequestHeaderConverter(), 30501);
+            this.Serializer.AddConverter<ConverterHeader>(new ConverterHeaderConverter(), 30521);
         }
 
         public virtual void Apply(byte[] destination, ref int index, params DataContext[] dataContexts)
@@ -29,8 +29,20 @@ namespace Borlay.Protocol.Converters
         protected virtual void ConvertSingle(byte[] destination, ref int index, DataContext dataContext)
         {
             destination[index++] = dataContext.DataFlag.InternalValue;
-            destination[index++] = serializer.SerializerType;
-            serializer.AddBytes(dataContext.Data, destination, ref index);
+            destination[index++] = Serializer.SerializerType;
+            if (dataContext.Bytes != null && dataContext.Bytes.Length > 0)
+            {
+                Array.Copy(dataContext.Bytes, 0, destination, index, dataContext.Bytes.Length);
+                index += dataContext.Bytes.Length;
+            }
+            else
+            {
+                var beginIndex = index;
+                Serializer.AddBytes(dataContext.Data, destination, ref index);
+                var endIndex = index;
+                if(!dataContext.Length.HasValue)
+                    dataContext.Length = endIndex - beginIndex;
+            }
         }
 
         public DataContext[] Resolve(byte[] source, ref int index, int length) //, out int dataAtIndex)
@@ -50,15 +62,18 @@ namespace Borlay.Protocol.Converters
             var dataFlag = (DataFlag)source[index++];
             var serializerType = source[index++];
 
-            if (serializerType != serializer.SerializerType)
+            if (serializerType != Serializer.SerializerType)
                 throw new NotSupportedException($"Serializer of type '{serializerType}' is not supported");
 
-            var data = serializer.GetObject(source, ref index);
+            var beginIndex = index;
+            var data = Serializer.GetObject(source, ref index);
+            var endIndex = index;
 
             var dataContext = new DataContext()
             {
                 Data = data,
                 DataFlag = dataFlag,
+                Length = endIndex - beginIndex
             };
 
             return dataContext;
@@ -74,10 +89,10 @@ namespace Borlay.Protocol.Converters
             index++;
             var serializerType = source[index++];
 
-            if (serializerType != serializer.SerializerType)
+            if (serializerType != Serializer.SerializerType)
                 throw new NotSupportedException($"Serializer of type '{serializerType}' is not supported");
 
-            var data = serializer.GetObject(source, ref index);
+            var data = Serializer.GetObject(source, ref index);
 
             dataContext = new DataContext()
             {

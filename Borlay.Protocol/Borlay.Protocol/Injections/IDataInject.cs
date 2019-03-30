@@ -42,5 +42,7 @@ namespace Borlay.Protocol.Injections
         public RequestHeader RequestHeader { get; internal set; }
 
         public Func<ILookup<DataFlag, DataContext>> GetData { get; internal set; }
+
+        public string[] Properties { get; set; } // todo implement properties
     }
 }

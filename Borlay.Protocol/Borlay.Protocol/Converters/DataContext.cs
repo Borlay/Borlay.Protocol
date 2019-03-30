@@ -7,6 +7,8 @@ namespace Borlay.Protocol.Converters
 
         public object Data { get; set; }
 
+        public int? Length { get; set; }
+
         public byte[] Bytes { get; set; }
     }
 }
