@@ -17,28 +17,27 @@ namespace Borlay.Protocol
         public event Action<ProtocolHost, IResolverSession, bool, AggregateException> ClientDisconnected = (h, s, c, e) => { };
         public event Action<ProtocolHost, Exception> Exception = (h, e) => { };
 
-        private Resolver resolver;
-        private HandlerProvider handler;
-        private Serializer converter;
-        private volatile bool initialized = false;
+        private volatile bool loaded = false;
 
-        public Resolver Resolver => resolver;
-        public HandlerProvider HandlerProvider => handler;
-        public Serializer Serializer => converter;
+        public Resolver Resolver { get; }
+        public HandlerProvider HandlerProvider { get; private set; }
+        public Serializer Serializer { get; private set; }
 
         public ProtocolHost()
         {
-            resolver = new Resolver();
+            Resolver = new Resolver();
+            Initialize();
         }
 
         public ProtocolHost(IResolver parent)
         {
-            resolver = new Resolver(parent);
+            Resolver = new Resolver(parent);
+            Initialize();
         }
 
         public async Task StartServerAsync(string ipString, int port, CancellationToken cancellationToken)
         {
-            if (!initialized)
+            if (!loaded)
                 throw new Exception($"Call InitializeFromReference first");
 
             var ipAddress = IPAddress.Parse(ipString);
@@ -53,7 +52,7 @@ namespace Borlay.Protocol
                         var client = await listener.AcceptTcpClientAsync();
                         try
                         {
-                            var session = resolver.CreateSession();
+                            var session = Resolver.CreateSession();
                             session.Resolver.Register(client, false);
                             session.Resolver.AddDisposable(client);
                             var listenTask = ClientListenAsync(client, session, false, cancellationToken);
@@ -82,11 +81,11 @@ namespace Borlay.Protocol
 
         public async Task<IResolverSession> StartClientAsync(string host, int port, CancellationToken cancellationToken)
         {
-            if (!initialized)
+            if (!loaded)
                 throw new Exception($"Call InitializeFromReference first");
 
             var client = new TcpClient();
-            var session = resolver.CreateSession();
+            var session = Resolver.CreateSession();
             session.Resolver.Register(client, false);
             session.Resolver.AddDisposable(client);
             // todo add to dispose
@@ -106,13 +105,11 @@ namespace Borlay.Protocol
             try
             {
                 var packetStream = new PacketStream(client.GetStream());
-                var protocol = new ProtocolStream(session, packetStream, converter, handler);
+                var protocol = new ProtocolStream(session, packetStream, Serializer, HandlerProvider);
 
                 session.Resolver.Register(protocol);
 
-
                 ClientConnected(this, session, isClient);
-
 
                 var listenTask = protocol.ListenAsync(cancellationToken);
 
@@ -145,6 +142,21 @@ namespace Borlay.Protocol
             }
         }
 
+        public bool RegisterHandler<T>(bool isSingletone)
+        {
+            return RegisterHandler(typeof(T), isSingletone);
+        }
+
+        public bool RegisterHandler(Type type, bool isSingletone)
+        {
+            if (HandlerProvider.RegisterHandler(type))
+            {
+                Resolver.Register(type, true, isSingletone);
+                return true;
+            }
+            return false;
+        }
+
         protected virtual void OnException(Exception e)
         {
             try
@@ -154,24 +166,25 @@ namespace Borlay.Protocol
             catch { };
         }
 
-        public void InitializeFromReference<T>()
+        private void Initialize()
         {
-            if (initialized)
+            HandlerProvider = new HandlerProvider();
+            Serializer = new Serializer();
+
+            Resolver.Register(HandlerProvider);
+            Resolver.Register(Serializer);
+        }
+
+        public void LoadFromReference<T>()
+        {
+            if (loaded)
                 throw new Exception($"Already initialized");
 
-            
-            resolver.LoadFromReference<T>();
+            Resolver.LoadFromReference<T>();
+            HandlerProvider.LoadFromReference<T>();
+            Serializer.LoadFromReference<T>();
 
-            handler = new HandlerProvider();
-            handler.LoadFromReference<T>();
-
-            converter = new Serializer();
-            converter.LoadFromReference<T>();
-
-            resolver.Register(handler);
-            resolver.Register(converter);
-
-            initialized = true;
+            loaded = true;
         }
     }
 }

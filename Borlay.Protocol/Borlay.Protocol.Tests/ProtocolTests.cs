@@ -93,6 +93,7 @@ namespace Borlay.Protocol.Tests
             //calculators.AddRange(await GetConnections<ICalculator>(listener, CancellationToken.None));
             //calculators.AddRange(await GetConnections<ICalculator>(listener, CancellationToken.None));
 
+
             List<Task<CalculatorResult>> tasks = new List<Task<CalculatorResult>>();
 
             Stopwatch watch = Stopwatch.StartNew();
@@ -232,11 +233,12 @@ namespace Borlay.Protocol.Tests
             //serverPacketStream.Connected(clientPacketStream);
             //clientPacketStream.Connected(serverPacketStream);
 
-            //var resolver1 = GetProtocolResolver(clientPacketStream); //tcpClient.GetStream());
+            //var resolver1 = GetProtocolResolver(clientPacketStream, true); //tcpClient.GetStream());
             //var resolver2 = GetProtocolResolver(serverPacketStream); // tcpServer.GetStream());
 
             var resolver1 = GetProtocolResolver(tcpClient.GetStream());
             var resolver2 = GetProtocolResolver(tcpServer.GetStream());
+ 
 
             resolver1.Resolver.Register(new CalculatorParameter() { First = 10 });
             resolver2.Resolver.Register(new CalculatorParameter() { First = 10 });
@@ -244,7 +246,7 @@ namespace Borlay.Protocol.Tests
             var calculator1 = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(resolver1);
             var calculator2 = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(resolver2);
 
-            return new TInterface[] { calculator1, calculator2 };
+            return new TInterface[] { calculator1 , calculator2 };
 
         }
 

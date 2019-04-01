@@ -49,8 +49,8 @@ namespace Borlay.Protocol.Tests
 
         public void WritePacket(byte[] bytes, int count, bool addCount)
         {
-            var buffer = new byte[count];
-            Array.Copy(bytes, 2, buffer, 0, count);
+            var buffer = new byte[count - 4];
+            Array.Copy(bytes, 4, buffer, 0, count - 4);
             packetStream.Append(buffer);
         }
 

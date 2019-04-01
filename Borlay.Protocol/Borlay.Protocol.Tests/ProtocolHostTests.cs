@@ -15,7 +15,7 @@ namespace Borlay.Protocol.Tests
         public async Task HostAndCreateChannel()
         {
             var host = new ProtocolHost();
-            host.InitializeFromReference<ProtocolHostTests>();
+            host.LoadFromReference<ProtocolHostTests>();
             host.Resolver.Register(new CalculatorParameter() { First = 10 });
             
             var serverTask = host.StartServerAsync("127.0.0.1", 90, CancellationToken.None);

@@ -131,18 +131,6 @@ namespace Borlay.Protocol
                     RezervedFlag = 0
                 };
 
-                //var actionDataContext = new DataContext()
-                //{
-                //    DataFlag = DataFlag.Action,
-                //    Data = actionMeta.GetActionId(),
-                //};
-
-                //var dataDataContext = new DataContext()
-                //{
-                //    DataFlag = DataFlag.Data,
-                //    Data = obj,
-                //};
-
 
                 var index = PrepareSendData(sendBuffer, requestHeader, argumentContexts);
 
