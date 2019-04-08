@@ -1,4 +1,5 @@
-﻿using Borlay.Arrays;
+﻿using System;
+using Borlay.Arrays;
 using Borlay.Serialization.Converters;
 
 namespace Borlay.Protocol.Converters
@@ -25,6 +26,11 @@ namespace Borlay.Protocol.Converters
                 RequestId = bytes.GetValue<int>(4, ref index)
             };
             return header;
+        }
+
+        public Type GetType(byte[] bytes, int index)
+        {
+            return typeof(RequestHeader);
         }
     }
 }

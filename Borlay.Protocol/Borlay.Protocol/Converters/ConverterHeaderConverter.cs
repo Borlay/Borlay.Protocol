@@ -1,4 +1,5 @@
-﻿using Borlay.Serialization.Converters;
+﻿using System;
+using Borlay.Serialization.Converters;
 
 namespace Borlay.Protocol.Converters
 {
@@ -29,6 +30,11 @@ namespace Borlay.Protocol.Converters
                 FlagMinor = bytes[index++],
             };
             return header;
+        }
+
+        public Type GetType(byte[] bytes, int index)
+        {
+            return typeof(ConverterHeader);
         }
     }
 }

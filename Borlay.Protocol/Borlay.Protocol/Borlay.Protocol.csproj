@@ -10,7 +10,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>protocol serialization</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -18,10 +18,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Borlay.Arrays" Version="1.0.0" />
+    <PackageReference Include="Borlay.Arrays" Version="1.0.2" />
     <PackageReference Include="Borlay.Handling" Version="1.0.16" />
     <PackageReference Include="Borlay.Injection" Version="1.0.10" />
-    <PackageReference Include="Borlay.Serialization" Version="1.0.0" />
+    <PackageReference Include="Borlay.Serialization" Version="1.0.5" />
   </ItemGroup>
 
 </Project>

@@ -14,8 +14,8 @@ namespace Borlay.Protocol.Converters
                 throw new ArgumentNullException(nameof(serializer));
 
             this.Serializer = serializer;
-            this.Serializer.AddConverter<RequestHeader>(new RequestHeaderConverter(), 30501);
-            this.Serializer.AddConverter<ConverterHeader>(new ConverterHeaderConverter(), 30521);
+            this.Serializer.ConverterProvider.AddConverter<RequestHeader>(new RequestHeaderConverter(), 30501);
+            this.Serializer.ConverterProvider.AddConverter<ConverterHeader>(new ConverterHeaderConverter(), 30521);
         }
 
         public virtual void Apply(byte[] destination, ref int index, params DataContext[] dataContexts)
@@ -29,7 +29,7 @@ namespace Borlay.Protocol.Converters
         protected virtual void ConvertSingle(byte[] destination, ref int index, DataContext dataContext)
         {
             destination[index++] = dataContext.DataFlag.InternalValue;
-            destination[index++] = Serializer.SerializerType;
+            destination[index++] = Serializer.Type;
             if (dataContext.Bytes != null && dataContext.Bytes.Length > 0)
             {
                 Array.Copy(dataContext.Bytes, 0, destination, index, dataContext.Bytes.Length);
@@ -62,7 +62,7 @@ namespace Borlay.Protocol.Converters
             var dataFlag = (DataFlag)source[index++];
             var serializerType = source[index++];
 
-            if (serializerType != Serializer.SerializerType)
+            if (serializerType != Serializer.Type)
                 throw new NotSupportedException($"Serializer of type '{serializerType}' is not supported");
 
             var beginIndex = index;
@@ -89,7 +89,7 @@ namespace Borlay.Protocol.Converters
             index++;
             var serializerType = source[index++];
 
-            if (serializerType != Serializer.SerializerType)
+            if (serializerType != Serializer.Type)
                 throw new NotSupportedException($"Serializer of type '{serializerType}' is not supported");
 
             var data = Serializer.GetObject(source, ref index);
