@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace Borlay.Protocol
 {
-    public class ProtocolHandler<TActAs> : IInterfaceHandler
+    public class ProtocolInterfaceHandler<TActAs> : IInterfaceHandler
     {
         protected readonly TypeMetaData typeMetaData;
         protected readonly IRequestAsync requestAsync;
@@ -24,7 +24,7 @@ namespace Borlay.Protocol
 
         public volatile static int ts;
 
-        public ProtocolHandler(IRequestAsync requestAsync)
+        public ProtocolInterfaceHandler(IRequestAsync requestAsync)
         {
             if (requestAsync == null)
                 throw new ArgumentNullException(nameof(requestAsync));

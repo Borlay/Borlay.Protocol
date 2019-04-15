@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Borlay.Protocol.Injections
+namespace Borlay.Protocol.Injection
 {
     public interface IDataInject
     {

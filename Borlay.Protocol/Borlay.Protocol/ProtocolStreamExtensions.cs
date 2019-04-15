@@ -42,7 +42,7 @@ namespace Borlay.Protocol
 
         public static TInterface CreateChannel<TInterface>(this IResolverSession session) where TInterface : class
         {
-            var channel = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(session);
+            var channel = InterfaceHandling.CreateHandler<TInterface, ProtocolInterfaceHandler<TInterface>>(session);
             return channel;
         }
     } 

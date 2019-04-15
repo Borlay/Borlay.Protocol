@@ -14,7 +14,8 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>F:\github\Borlay.Protocol\Borlay.Protocol\Borlay.Protocol\Borlay.Protocol.xml</DocumentationFile>
+    <DocumentationFile>C:\github\Borlay.Protocol\Borlay.Protocol\Borlay.Protocol\Borlay.Protocol.xml</DocumentationFile>
+    <OutputPath></OutputPath>
   </PropertyGroup>
 
   <ItemGroup>

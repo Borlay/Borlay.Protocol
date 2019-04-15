@@ -118,7 +118,7 @@ namespace Borlay.Protocol.Tests
             foreach (var r in results)
                 Assert.AreEqual(15, r.Result);
 
-            var ts = TimeSpan.FromTicks(ProtocolHandler<ICalculator>.ts);
+            var ts = TimeSpan.FromTicks(ProtocolInterfaceHandler<ICalculator>.ts);
 
             var send_request = ProtocolWatch.GetTimestamp("send-request");
             var send_response = ProtocolWatch.GetTimestamp("rp-send-response");
@@ -243,8 +243,8 @@ namespace Borlay.Protocol.Tests
             resolver1.Resolver.Register(new CalculatorParameter() { First = 10 });
             resolver2.Resolver.Register(new CalculatorParameter() { First = 10 });
 
-            var calculator1 = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(resolver1);
-            var calculator2 = InterfaceHandling.CreateHandler<TInterface, ProtocolHandler<TInterface>>(resolver2);
+            var calculator1 = InterfaceHandling.CreateHandler<TInterface, ProtocolInterfaceHandler<TInterface>>(resolver1);
+            var calculator2 = InterfaceHandling.CreateHandler<TInterface, ProtocolInterfaceHandler<TInterface>>(resolver2);
 
             return new TInterface[] { calculator1 , calculator2 };
 

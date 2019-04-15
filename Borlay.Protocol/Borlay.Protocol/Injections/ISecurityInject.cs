@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Borlay.Protocol.Injections
+namespace Borlay.Protocol.Injection
 {
     public interface ISecurityInject
     {
