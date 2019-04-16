@@ -277,7 +277,7 @@ namespace Borlay.Protocol.Tests
             var converter = new Serializer();
             converter.LoadFromReference<ProtocolTests>();
 
-            var protocol = new ProtocolStream(session, packetStream, converter, handler);
+            var protocol = new SocketProtocolHandler(session, packetStream, converter, handler);
 
             session.Resolver.Register(protocol);
             session.Resolver.Register(handler);

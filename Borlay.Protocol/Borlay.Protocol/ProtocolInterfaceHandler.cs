@@ -18,18 +18,18 @@ namespace Borlay.Protocol
     public class ProtocolInterfaceHandler<TActAs> : IInterfaceHandler
     {
         protected readonly TypeMetaData typeMetaData;
-        protected readonly IRequestAsync requestAsync;
+        protected readonly IProtocolHandler protocolHandler;
 
         public bool IsAsync => true;
 
         public volatile static int ts;
 
-        public ProtocolInterfaceHandler(IRequestAsync requestAsync)
+        public ProtocolInterfaceHandler(IProtocolHandler protocolHandler)
         {
-            if (requestAsync == null)
-                throw new ArgumentNullException(nameof(requestAsync));
+            if (protocolHandler == null)
+                throw new ArgumentNullException(nameof(protocolHandler));
 
-            this.requestAsync = requestAsync;
+            this.protocolHandler = protocolHandler;
 
             typeMetaData = TypeMetaDataProvider.GetTypeMetaData<TActAs>();
         }
@@ -95,7 +95,9 @@ namespace Borlay.Protocol
                 };
             }
 
-            var result = requestAsync.SendRequestAsync(argumentContexts, cancellationToken);
+            var dataContent = new DataContent(argumentContexts);
+
+            var result = protocolHandler.HandleDataAsync(null, dataContent, cancellationToken); // todo change to Add session
             stop();
             stop = ProtocolWatch.Start("handle-async");
 
@@ -109,7 +111,7 @@ namespace Borlay.Protocol
             return task;
         }
 
-        protected virtual object WrapTask(Task<object> result, Type tcsType, bool hasResult)
+        protected virtual object WrapTask(Task<DataContent> result, Type tcsType, bool hasResult)
         {
             var tcs = Activator.CreateInstance(tcsType);
 
@@ -139,12 +141,14 @@ namespace Borlay.Protocol
                         }
                         else
                         {
-                            if (!tcsType.GenericTypeArguments[0].GetTypeInfo().IsAssignableFrom(t.Result.GetType()))
+                            var response = t.Result[DataFlag.Data].SingleOrDefault()?.Data;
+
+                            if (response != null && !tcsType.GenericTypeArguments[0].GetTypeInfo().IsAssignableFrom(response.GetType()))
                                 throw new ProtocolException(ErrorCode.UnknownResponse);
 
                             tcsType
                                 .GetRuntimeMethod("TrySetResult", tcsType.GenericTypeArguments)
-                                .Invoke(tcs, new object[] { t.Result });
+                                .Invoke(tcs, new object[] { response });
                         }
                     }
                 }

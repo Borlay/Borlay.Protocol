@@ -105,7 +105,7 @@ namespace Borlay.Protocol
             try
             {
                 var packetStream = new PacketStream(client.GetStream());
-                var protocol = new ProtocolStream(session, packetStream, Serializer, HandlerProvider);
+                var protocol = new SocketProtocolHandler(session, packetStream, Serializer, HandlerProvider);
 
                 session.Resolver.Register(protocol);
 
