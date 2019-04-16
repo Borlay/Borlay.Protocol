@@ -31,7 +31,7 @@ namespace Borlay.Protocol
         protected readonly IPacketStream packetStream;
         //protected readonly ISerializer serializer;
         //protected readonly IHandlerProvider handlerProvider;
-        protected readonly IProtocolHandler methodHandler;
+        protected readonly IProtocolHandler protocolHandler;
         protected readonly IProtocolConverter protocolConverter;
 
         
@@ -85,7 +85,7 @@ namespace Borlay.Protocol
             this.ResolverSession = session;
             this.packetStream = packetStream ?? throw new ArgumentNullException(nameof(packetStream));
             //this.handlerProvider = handlerProvider ?? throw new ArgumentNullException(nameof(handlerProvider));
-            this.methodHandler = new MethodProtocolHandler(handlerProvider);
+            this.protocolHandler = new MethodProtocolHandler(handlerProvider);
             //this.dataCache = cache ?? throw new ArgumentNullException(nameof(cache));
 
             this.protocolConverter = protocolConverter;
@@ -357,7 +357,7 @@ namespace Borlay.Protocol
             try
             {
                 var stop = ProtocolWatch.Start("rp-handle-request");
-                var result = await methodHandler.HandleDataAsync(ResolverSession, dataContent, cancellationToken);
+                var result = await protocolHandler.HandleDataAsync(ResolverSession, dataContent, cancellationToken);
 
                 //object response = await handler.HandleAsync(ResolverSession, request, cancellationToken);
                 //if (response == null)

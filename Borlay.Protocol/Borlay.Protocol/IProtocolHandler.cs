@@ -17,6 +17,8 @@ namespace Borlay.Protocol
         Task<DataContent> HandleDataAsync(IResolverSession session, DataContent dataContent, CancellationToken cancellationToken);
     }
 
+    // todo test for ProtocolInterfaceHandler + MethodProtocolHandler
+
     // todo repositories:
     // Borlay.Protocol.Handling
 
