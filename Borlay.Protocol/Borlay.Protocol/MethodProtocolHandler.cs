@@ -14,13 +14,26 @@ namespace Borlay.Protocol
     public class MethodProtocolHandler : IProtocolHandler
     {
         private readonly IHandlerProvider handlerProvider;
+        private readonly IResolverSession resolverSession;
 
-        public MethodProtocolHandler(IHandlerProvider handlerProvider)
+        //public MethodProtocolHandler(IHandlerProvider handlerProvider)
+        //{
+        //    if (handlerProvider == null)
+        //        throw new ArgumentNullException(nameof(handlerProvider));
+
+        //    this.handlerProvider = handlerProvider;
+        //}
+
+        public MethodProtocolHandler(IHandlerProvider handlerProvider, IResolverSession resolverSession)
         {
             if (handlerProvider == null)
                 throw new ArgumentNullException(nameof(handlerProvider));
 
+            if (resolverSession == null)
+                throw new ArgumentNullException(nameof(resolverSession));
+
             this.handlerProvider = handlerProvider;
+            //this.resolverSession = resolverSession;
         }
 
         public async Task<DataContent> HandleDataAsync(IResolverSession session, DataContent dataContent, CancellationToken cancellationToken)
@@ -36,11 +49,9 @@ namespace Borlay.Protocol
             if (!handlerProvider.TryGetHandler(scopeId ?? "", actionId ?? "", mhash, out var handlerItem))
                 throw new ProtocolException($"Handler for scope {scopeId} action {actionId} hash {methodHash} not found", ErrorCode.BadRequest);
 
-            object response = await handlerItem.HandleAsync(session, request, cancellationToken);
+            object response = await handlerItem.HandleAsync(session ?? resolverSession, request, cancellationToken);
             if (response == null)
-            {
-                response = new EmptyResponse();
-            }
+                return new DataContent();
 
             return new DataContent(new DataContext()
             {

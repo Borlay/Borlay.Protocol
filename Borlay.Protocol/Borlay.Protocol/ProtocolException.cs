@@ -27,6 +27,22 @@ namespace Borlay.Protocol
         }
     }
 
+    public class ResponseProtocolException : ProtocolException, IResponseException
+    {
+        public ErrorResponse Response { get; private set; }
+
+        public ResponseProtocolException(ErrorResponse errorResponse)
+            : base(errorResponse.Message, errorResponse.Code)
+        {
+            this.Response = Response;
+        }
+    }
+
+    public interface IResponseException
+    {
+        ErrorResponse Response { get; }
+    }
+
     public enum ErrorCode
     {
         UnknownType = 1,

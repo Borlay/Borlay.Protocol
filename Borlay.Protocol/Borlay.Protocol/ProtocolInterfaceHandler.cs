@@ -19,17 +19,22 @@ namespace Borlay.Protocol
     {
         protected readonly TypeMetaData typeMetaData;
         protected readonly IProtocolHandler protocolHandler;
+        protected readonly IResolverSession resolverSession;
 
         public bool IsAsync => true;
 
         public volatile static int ts;
 
-        public ProtocolInterfaceHandler(IProtocolHandler protocolHandler)
+        public ProtocolInterfaceHandler(IProtocolHandler protocolHandler, IResolverSession resolverSession)
         {
             if (protocolHandler == null)
                 throw new ArgumentNullException(nameof(protocolHandler));
 
+            if (resolverSession == null)
+                throw new ArgumentNullException(nameof(resolverSession));
+
             this.protocolHandler = protocolHandler;
+            this.resolverSession = resolverSession;
 
             typeMetaData = TypeMetaDataProvider.GetTypeMetaData<TActAs>();
         }
@@ -97,7 +102,7 @@ namespace Borlay.Protocol
 
             var dataContent = new DataContent(argumentContexts);
 
-            var result = protocolHandler.HandleDataAsync(null, dataContent, cancellationToken); // todo change to Add session
+            var result = protocolHandler.HandleDataAsync(resolverSession, dataContent, cancellationToken); // todo change to Add session
             stop();
             stop = ProtocolWatch.Start("handle-async");
 
@@ -133,7 +138,15 @@ namespace Borlay.Protocol
                     }
                     else
                     {
-                        if (!hasResult)
+                        var response = t.Result[DataFlag.Data].SingleOrDefault()?.Data;
+                        if (response is ErrorResponse errorResponse)
+                        {
+                            var exception = new ResponseProtocolException(errorResponse);
+                            tcsType
+                                .GetRuntimeMethod("TrySetException", new Type[] { typeof(Exception) })
+                                .Invoke(tcs, new object[] { exception });
+                        }
+                        else if(response == null)
                         {
                             tcsType
                                 .GetRuntimeMethod("TrySetResult", tcsType.GenericTypeArguments)
@@ -141,9 +154,7 @@ namespace Borlay.Protocol
                         }
                         else
                         {
-                            var response = t.Result[DataFlag.Data].SingleOrDefault()?.Data;
-
-                            if (response != null && !tcsType.GenericTypeArguments[0].GetTypeInfo().IsAssignableFrom(response.GetType()))
+                            if (!tcsType.GenericTypeArguments[0].GetTypeInfo().IsAssignableFrom(response.GetType()))
                                 throw new ProtocolException(ErrorCode.UnknownResponse);
 
                             tcsType

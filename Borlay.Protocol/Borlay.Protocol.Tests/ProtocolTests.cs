@@ -289,6 +289,42 @@ namespace Borlay.Protocol.Tests
         }
 
         [Test]
+        public async Task InterfaceToMethodProtocolHandlerTest()
+        {
+            var resolver = new Resolver();
+            resolver.LoadFromReference<ProtocolTests>();
+
+            resolver.Register(new CalculatorParameter() { First = 10 });
+
+            var session = resolver.CreateSession();
+            resolver.Register(session);
+
+            var handler = new HandlerProvider();
+            handler.LoadFromReference<ProtocolTests>();
+
+            var methodHandler = new MethodProtocolHandler(handler, session);
+            resolver.Register(methodHandler, true);
+            var calculator = InterfaceHandling.CreateHandler<ICalculator, ProtocolInterfaceHandler<ICalculator>>(session);
+
+            List<Task> tasks = new List<Task>();
+            var watch = Stopwatch.StartNew();
+            for (int i = 0; i < 10000; i++)
+            {
+
+                var task = calculator.AddAsync("20");
+                tasks.Add(task);
+            }
+
+            await Task.WhenAll(tasks);
+
+            watch.Stop();
+
+            // a: 10k 0.2-0.3s
+
+            //Assert.AreEqual(30, task.Result);
+        }
+
+        [Test]
         public async Task PlainSocketTest()
         {
             TcpListener listener = new TcpListener(106);

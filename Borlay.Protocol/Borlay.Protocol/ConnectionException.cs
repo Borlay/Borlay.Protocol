@@ -6,24 +6,24 @@ namespace Borlay.Protocol
 {
     public class ConnectionException : Exception
     {
-        public ConnectionError Error { get; set; }
+        public ConnectionError ConnectionError { get; set; }
 
         public ConnectionException(ConnectionError connectionError)
             : base($"Connection error occurred: '{connectionError}'")
         {
-            this.Error = connectionError;
+            this.ConnectionError = connectionError;
         }
 
         public ConnectionException(string message, ConnectionError connectionError)
             : base(message)
         {
-            this.Error = connectionError;
+            this.ConnectionError = connectionError;
         }
 
         public ConnectionException(string message, Exception innerException, ConnectionError connectionError)
             : base(message, innerException)
         {
-            this.Error = connectionError;
+            this.ConnectionError = connectionError;
         }
     }
 

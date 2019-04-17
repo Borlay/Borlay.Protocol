@@ -17,20 +17,14 @@ using System.Threading.Tasks;
 
 namespace Borlay.Protocol
 {
-    public class SocketProtocolHandler : IProtocolHandler //, IRequestAsync
+    public class SocketProtocolHandler : IProtocolHandler
     {
         public const int DefaultBufferSize = 4096;
         public int BufferSize { get; protected set; } = DefaultBufferSize;
 
         public event Action<SocketProtocolHandler> Closed = (p) => { };
 
-        //protected readonly ICache dataCache;
-        //protected readonly IRequestKeyCache responseKeyCache = new RequestKeyCache();
-        //protected readonly IRequestKeyCache requestKeyCache = new RequestKeyCache();
-
         protected readonly IPacketStream packetStream;
-        //protected readonly ISerializer serializer;
-        //protected readonly IHandlerProvider handlerProvider;
         protected readonly IProtocolHandler protocolHandler;
         protected readonly IProtocolConverter protocolConverter;
 
@@ -55,40 +49,32 @@ namespace Borlay.Protocol
 
 
         public SocketProtocolHandler(IResolverSession session, Stream stream, ISerializer serializer, IHandlerProvider handlerProvider)
-            : this(session, new PacketStream(stream), serializer, handlerProvider, new Cache())
+            : this(session, new PacketStream(stream), serializer, handlerProvider)
         {
         }
 
         public SocketProtocolHandler(IResolverSession session, IPacketStream packetStream, ISerializer serializer, IHandlerProvider handlerProvider)
-            : this(session, packetStream, serializer, handlerProvider, new Cache())
+            : this(session, packetStream, new ProtocolConverter(serializer), handlerProvider)
         {
 
         }
 
-        public SocketProtocolHandler(IResolverSession session, IPacketStream packetStream, ISerializer serializer, IHandlerProvider handlerProvider, ICache cache)
-            : this(session, packetStream, new ProtocolConverter(serializer), handlerProvider, cache)
+        public SocketProtocolHandler(IResolverSession session, Stream stream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
+            : this(session, new PacketStream(stream), protocolConverter, handlerProvider)
         {
         }
 
         public SocketProtocolHandler(IResolverSession session, IPacketStream packetStream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
-            : this(session, packetStream, protocolConverter, handlerProvider, new Cache())
+            : this(session, packetStream, protocolConverter, new MethodProtocolHandler(handlerProvider, session))
         {
         }
 
-        public SocketProtocolHandler(IResolverSession session, Stream stream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider)
-            : this(session, new PacketStream(stream), protocolConverter, handlerProvider, new Cache())
-        {
-        }
-
-        public SocketProtocolHandler(IResolverSession session, IPacketStream packetStream, IProtocolConverter protocolConverter, IHandlerProvider handlerProvider, ICache cache)
+        public SocketProtocolHandler(IResolverSession session, IPacketStream packetStream, IProtocolConverter protocolConverter, IProtocolHandler protocolHandler)
         {
             this.ResolverSession = session;
             this.packetStream = packetStream ?? throw new ArgumentNullException(nameof(packetStream));
-            //this.handlerProvider = handlerProvider ?? throw new ArgumentNullException(nameof(handlerProvider));
-            this.protocolHandler = new MethodProtocolHandler(handlerProvider);
-            //this.dataCache = cache ?? throw new ArgumentNullException(nameof(cache));
-
-            this.protocolConverter = protocolConverter;
+            this.protocolHandler = protocolHandler ?? throw new ArgumentNullException(nameof(protocolHandler));
+            this.protocolConverter = protocolConverter ?? throw new ArgumentNullException(nameof(protocolConverter));
 
             this.ConverterHeader = new ConverterHeader() { VersionMajor = 1 };
         }
@@ -121,7 +107,7 @@ namespace Borlay.Protocol
                 var requestHeader = new RequestHeader()
                 {
                     RequestId = requestId,
-                    CanBeCached = false, //actionMeta.CanBeCached,
+                    CanBeCached = false,
                     RequestType = RequestType.Request,
                     RezervedFlag = 0
                 };
@@ -136,13 +122,6 @@ namespace Borlay.Protocol
                     if (responses.TryRemove(requestId, out var tcs))
                         tcs.TrySetCanceled();
                 });
-
-                //if(actionMeta.CacheReceivedResponse)
-                //{
-                //    var key = responseKeyCache.GetKey(sendBuffer, keyStartIndex, index - keyStartIndex);
-                //    if(!dataCache.Contains(key))
-                //        responseKeyCache.SaveRequestKey(requestId, key);
-                //}
 
                 packetStream.WritePacket(sendBuffer, index, false);
             }
@@ -200,7 +179,6 @@ namespace Borlay.Protocol
                 protocolConverter.Apply(sendBuffer, ref index, dataContexts);
             }
 
-            var dataStartIndex = index;
             protocolConverter.Apply(sendBuffer, ref index, dataContent.DataContexts);
 
             if (SecurityInject != null)
@@ -265,11 +243,6 @@ namespace Borlay.Protocol
             if (converterHeader.VersionMajor != 1)
                 throw new ProtocolException(ErrorCode.VersionNotSupported);
 
-            if (converterHeader.Encryption != 0)
-                throw new ProtocolException(ErrorCode.VersionNotSupported);
-            if (converterHeader.Compression != 0)
-                throw new ProtocolException(ErrorCode.VersionNotSupported);
-
 
             if (SecurityInject != null)
             {
@@ -329,18 +302,6 @@ namespace Borlay.Protocol
                     if (tcs.Task.IsCompleted || tcs.Task.IsCanceled || tcs.Task.IsFaulted)
                         return;
 
-                    //var dataStartIndex = index;
-
-                    //var response = contexts[DataFlag.Data].First().Data;
-
-                    //var isEmpty = IsEmptyOrError(response, false);
-                    //if (isEmpty)
-                    //    tcs.TrySetResult(null);
-
-
-                    //if (responseKeyCache.TryRemoveRequestKey(requestId, out var key) && canBeCached && !isEmpty)
-                    //    dataCache.AddData(key, readBuffer, dataStartIndex, index - dataStartIndex);
-
                     tcs.TrySetResult(dataContent);
                     stop();
                 }
@@ -359,78 +320,23 @@ namespace Borlay.Protocol
                 var stop = ProtocolWatch.Start("rp-handle-request");
                 var result = await protocolHandler.HandleDataAsync(ResolverSession, dataContent, cancellationToken);
 
-                //object response = await handler.HandleAsync(ResolverSession, request, cancellationToken);
-                //if (response == null)
-                //{
-                //    response = new EmptyResponse();
-                //    canBeCached = false;
-                //}
-
                 stop();
                 SendResponse(result, requestId, false, cache);
-
-                //var keyStartIndex = index;
-
-                //var actionId = contexts[DataFlag.Action].First()?.Data; //protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Action);
-                //var scopeId = contexts[DataFlag.Scope].FirstOrDefault()?.Data;
-                //var methodHash = contexts[DataFlag.MethodHash].FirstOrDefault()?.Data;
-                //var request = contexts[DataFlag.Data].Select(d => d.Data).ToArray(); //protocolConverter.Resolve<object>(readBuffer, ref index, DataFlag.Data);
-
-                //if (methodHash == null || !(methodHash is ByteArray mhash))
-                //    throw new ProtocolException("Parameter hash is null or not ByteArray", ErrorCode.BadRequest);
-
-                ////var isEmpty = IsEmptyOrError(request, false);
-                ////if (isEmpty)
-                ////    throw new ProtocolException(ErrorCode.UnknownRequest);
-
-                //// todo add actionId
-                //if(!handlerProvider.TryGetHandler(scopeId ?? "", actionId ?? "", mhash, out var handlerItem))
-                //    throw new ProtocolException($"Handler for scope {scopeId} action {actionId} hash {methodHash} not found", ErrorCode.BadRequest);
-
-
-                //var actionMeta = handlerItem.ActionMeta ?? throw new ArgumentNullException(nameof(handlerItem.ActionMeta));
-
-                //if (actionMeta.CanBeCached)
-                //{
-                //    var key = responseKeyCache.GetKey(readBuffer, keyStartIndex, index - keyStartIndex);
-                //    if (dataCache.TryGetData(key, out var bytes))
-                //    {
-                //        SendResponse(requestId, bytes, actionMeta.CanBeCached);
-                //        return;
-                //    }
-                //    else if (actionMeta.CacheSendedResponse)
-                //    {
-                //        cache = true;
-                //        requestKeyCache.SaveRequestKey(requestId, key);
-                //    }
-                //}
-
-                //stop();
-
-                //HandleRequestAsync(requestId, handlerItem, request, false /* actionMeta.CanBeCached*/ , cache, cancellationToken);
             }
             catch(Exception e)
             {
                 var response = CreateErrorResponse(e);
-                SendResponse(requestId, response, false, cache);
-            }
-        }
-
-        protected virtual async void HandleRequestAsync(int requestId, IHandler handler, object[] request, bool canBeCached, bool cache, CancellationToken cancellationToken)
-        {
-            try
-            {
-                
-            }
-            catch(Exception e)
-            {
-                var response = CreateErrorResponse(e);
-                SendResponse(requestId, response, false, cache);
+                SendResponse(response, requestId, false, cache);
             }
         }
 
         public virtual ErrorResponse CreateErrorResponse(Exception exception)
         {
+            if(exception is IResponseException responseException)
+            {
+                return responseException.Response;
+            }
+
             if(exception is VersionMismatchException)
             {
                 return new ErrorResponse()
@@ -439,14 +345,16 @@ namespace Borlay.Protocol
                     Message = exception.Message
                 };
             }
-            if(exception is ProtocolException)
+
+            if(exception is ProtocolException protocolException)
             {
                 return new ErrorResponse()
                 {
-                    Code = ((ProtocolException)exception).ResponseError,
+                    Code = protocolException.ResponseError,
                     Message= exception.Message
                 };
             }
+
             return new ErrorResponse()
             {
                 Code = ErrorCode.BadRequest,
@@ -454,7 +362,7 @@ namespace Borlay.Protocol
             };
         }
 
-        public virtual void SendResponse(int requestId, object response, bool canBeCached, bool cache)
+        public virtual void SendResponse(object response, int requestId, bool canBeCached, bool cache)
         {
             var dataContent = new DataContent(new DataContext()
             {
@@ -481,32 +389,12 @@ namespace Borlay.Protocol
                     RezervedFlag = 0,
                 };
 
-                //var dataDataContext = new DataContext()
-                //{
-                //    DataFlag = DataFlag.Data,
-                //    Data = response,
-                //};
-
-
                 var index = PrepareSendData(sendBuffer, requestHeader, dataContent);
-
-                //protocolConverter.Apply(sendBuffer, ref index, converterHeaderContext);
-                //protocolConverter.ApplyHeader(sendBuffer, ref index, header);
-
-                //var dataStartIndex = index;
-
-                //protocolConverter.ApplyData(sendBuffer, ref index, response);
-
-                //sendBuffer.InsertLength(index - 2);
-
-                //if (cache && requestKeyCache.TryRemoveRequestKey(requestId, out var key) && canBeCached)
-                //    dataCache.AddData(key, sendBuffer, dataStartIndex, index - dataStartIndex);
 
                 packetStream.WritePacket(sendBuffer, (ushort)index, false);
             }
             catch (Exception e)
             {
-                //requestKeyCache.RemoveRequestKey(requestId);
                 OnClosed(e);
                 throw;
             }

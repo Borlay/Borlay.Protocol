@@ -12,6 +12,12 @@ namespace Borlay.Protocol
         public ErrorCode Code { get; set; }
 
         [Include(1, false)]
-        public string Message { get; set; } // todo peržiūrėti ar nereikia byte array
+        public string Reason { get; set; }
+
+        [Include(2, false)]
+        public string Message { get; set; }
+
+        [Include(3, false)]
+        public string Field { get; set; }
     }
 }

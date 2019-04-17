@@ -88,11 +88,6 @@ namespace Borlay.Protocol
             var session = Resolver.CreateSession();
             session.Resolver.Register(client, false);
             session.Resolver.AddDisposable(client);
-            // todo add to dispose
-            //var localResolver = new Resolver(resolver);
-            //localResolver.Register((s) => new Tuple<TcpClient, Action>(tcpClient, null));
-
-            //var session = localResolver.CreateSession();
 
             await client.ConnectAsync(host, port);
             var task = ClientListenAsync(client, session, true, cancellationToken);
@@ -127,8 +122,6 @@ namespace Borlay.Protocol
                     {
                         if (!session.TryDispose(out var ex))
                             OnException(ex);
-
-                        
                     }
                 });
                 return listenTask;
@@ -152,6 +145,16 @@ namespace Borlay.Protocol
             if (HandlerProvider.RegisterHandler(type))
             {
                 Resolver.Register(type, true, isSingletone);
+                return true;
+            }
+            return false;
+        }
+
+        public bool RegisterHandler(object instance, bool includeBase)
+        {
+            if (HandlerProvider.RegisterHandler(instance.GetType()))
+            {
+                Resolver.Register(instance, includeBase);
                 return true;
             }
             return false;

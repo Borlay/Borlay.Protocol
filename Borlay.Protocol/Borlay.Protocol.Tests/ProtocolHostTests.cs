@@ -25,12 +25,12 @@ namespace Borlay.Protocol.Tests
                 var isClient = c;
             };
 
+
             using (var session = await host.StartClientAsync("127.0.0.1", 90))
             {
                 var calculator = session.CreateChannel<ICalculator>();
 
                 var result = await calculator.AddAsync("9");
-
                 Assert.AreEqual(19, result.Result);
             }
 
