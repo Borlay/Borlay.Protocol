@@ -297,7 +297,7 @@ namespace Borlay.Protocol.Tests
             resolver.Register(new CalculatorParameter() { First = 10 });
 
             var session = resolver.CreateSession();
-            resolver.Register(session);
+            //resolver.Register(session);
 
             var handler = new HandlerProvider();
             handler.LoadFromReference<ProtocolTests>();
