@@ -28,47 +28,4 @@ namespace Borlay.Protocol
     // Borlay.Handling.Methods
 
     // Borlay.Protocol.Host
-
-    public class DataContent : IEnumerable<DataContext>, ILookup<DataFlag, DataContext>
-    {
-        protected readonly ILookup<DataFlag, DataContext> contextLookup;
-
-        public DataContext[] DataContexts { get; private set; }
-
-        public int Count => contextLookup.Count;
-
-        public DataContent(params DataContext[] contexts)
-        {
-            contextLookup = contexts.ToLookup(c => c.DataFlag);
-            DataContexts = contexts;
-        }
-
-        public virtual IEnumerable<DataContext> this[DataFlag flag]
-        {
-            get
-            {
-                return contextLookup[flag];
-            }
-        }
-
-        public IEnumerator<DataContext> GetEnumerator()
-        {
-            return DataContexts.AsEnumerable().GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return DataContexts.GetEnumerator();
-        }
-
-        public bool Contains(DataFlag key)
-        {
-            return contextLookup.Contains(key);
-        }
-
-        IEnumerator<IGrouping<DataFlag, DataContext>> IEnumerable<IGrouping<DataFlag, DataContext>>.GetEnumerator()
-        {
-            return contextLookup.GetEnumerator();
-        }
-    }
 }

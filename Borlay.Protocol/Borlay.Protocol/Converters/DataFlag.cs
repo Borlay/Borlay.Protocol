@@ -11,6 +11,8 @@ namespace Borlay.Protocol.Converters
         public static readonly byte MethodHash = 3;
         public static readonly byte Data = 4;
         public static readonly byte Authorization = 5;
+        public static readonly byte ShardKey = 6;
+        public static readonly byte Kind = 7;
 
         public override bool Equals(object obj)
         {
