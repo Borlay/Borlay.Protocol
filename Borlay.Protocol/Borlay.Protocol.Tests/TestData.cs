@@ -86,7 +86,6 @@ namespace Borlay.Protocol.Tests
     [Handler]
     public interface ICalculator //: IMerge
     {
-
         [IdAction(1, CanBeCached = true, CacheReceivedResponse = true)]
         Task<CalculatorResult> AddAsync(CalculatorArgument argument, [Inject]CancellationToken cancellationToken);
 

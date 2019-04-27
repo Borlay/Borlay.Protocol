@@ -34,7 +34,7 @@ namespace Borlay.Protocol.Tests
                 Assert.AreEqual(19, result.Result);
             }
 
-            await serverTask;
+            //await serverTask;
         }
     }
 }
