@@ -271,7 +271,7 @@ namespace Borlay.Protocol.Tests
             resolver.LoadFromReference<ProtocolTests>();
             var session = resolver.CreateSession();
 
-            var handler = new HandlerProvider();
+            var handler = new HandlerProvider(session.Resolve<IMethodContextInfoProvider>());
             handler.LoadFromReference<ProtocolTests>();
 
             var converter = new Serializer();
@@ -299,7 +299,7 @@ namespace Borlay.Protocol.Tests
             var session = resolver.CreateSession();
             //resolver.Register(session);
 
-            var handler = new HandlerProvider();
+            var handler = new HandlerProvider(session.Resolve<IMethodContextInfoProvider>());
             handler.LoadFromReference<ProtocolTests>();
 
             var methodHandler = new MethodProtocolHandler(handler, session);

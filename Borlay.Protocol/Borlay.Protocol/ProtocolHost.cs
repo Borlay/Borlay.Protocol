@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Borlay.Protocol
 {
-    public class ProtocolHost
+    public class ProtocolHost : IDisposable
     {
         public event Action<ProtocolHost, IResolverSession, bool> ClientConnected = (h, s, c) => { };
         public event Action<ProtocolHost, IResolverSession, bool, AggregateException> ClientDisconnected = (h, s, c, e) => { };
@@ -184,10 +184,22 @@ namespace Borlay.Protocol
                 throw new Exception($"Already initialized");
 
             Resolver.LoadFromReference<T>();
+            
+            if(Resolver.TryResolveSingletone<IMethodContextInfoProvider>(out var contextProvider))
+            {
+                HandlerProvider = new HandlerProvider(contextProvider);
+                Resolver.Register(HandlerProvider);
+            }
+
             HandlerProvider.LoadFromReference<T>();
             Serializer.LoadFromReference<T>();
 
             loaded = true;
+        }
+
+        public void Dispose()
+        {
+            Resolver.Dispose();
         }
     }
 }
