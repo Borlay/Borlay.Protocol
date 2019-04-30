@@ -28,9 +28,14 @@ namespace Borlay.Protocol.Converters
             return header;
         }
 
-        public Type GetType(byte[] bytes, int index)
+        public Type GetType(byte[] bytes, ref int index)
         {
             return typeof(RequestHeader);
+        }
+
+        public void AddType(Type type, byte[] bytes, ref int index)
+        {
+            // do nothing
         }
     }
 }

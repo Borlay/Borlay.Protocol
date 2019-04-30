@@ -15,7 +15,6 @@ namespace Borlay.Protocol.Converters
             bytes[index++] = header.Compression;
             bytes[index++] = header.FlagMajor; // additional flags
             bytes[index++] = header.FlagMinor; // additional flags
-
         }
 
         public object GetObject(byte[] bytes, ref int index)
@@ -32,9 +31,14 @@ namespace Borlay.Protocol.Converters
             return header;
         }
 
-        public Type GetType(byte[] bytes, int index)
+        public Type GetType(byte[] bytes, ref int index)
         {
             return typeof(ConverterHeader);
+        }
+
+        public void AddType(Type type, byte[] bytes, ref int index)
+        {
+            // do nothing
         }
     }
 }
