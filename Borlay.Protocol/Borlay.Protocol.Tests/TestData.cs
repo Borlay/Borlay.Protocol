@@ -86,19 +86,19 @@ namespace Borlay.Protocol.Tests
     [Handler]
     public interface ICalculator //: IMerge
     {
-        [IdAction(1, CanBeCached = true, CacheReceivedResponse = true)]
+        [Action("1")]
         Task<CalculatorResult> AddAsync(CalculatorArgument argument, [Inject]CancellationToken cancellationToken);
 
-        [IdAction(2, CanBeCached = true, CacheReceivedResponse = true)]
+        [Action("2")]
         Task<CalculatorResult> AddAsync(string argument);
 
-        [IdAction(2, CanBeCached = true, CacheReceivedResponse = true)]
+        [Action("2")]
         Task<CalculatorResult> AddAsync();
 
-        [IdAction(2, CanBeCached = true, CacheReceivedResponse = true)]
+        [Action("2")]
         Task<CalculatorResult> AddAsync(CalculatorArgument argument, CalculatorArgument argument2, [Inject]CancellationToken cancellationToken);
 
-        [NameAction]
+        [Action]
         Task<CalculatorResult> Subsync(CalculatorArgument argument, [Inject]CancellationToken cancellationToken);
     }
 
@@ -107,8 +107,25 @@ namespace Borlay.Protocol.Tests
     [Role("Merge")]
     public interface IMerge
     {
-        [NameAction]
+        [Action]
         Task<CalculatorResult> MergeAsync(CalculatorArgument argument, [Inject]CancellationToken cancellationToken);
+    }
+
+    [Resolve]
+    [Handler]
+    [Scope("GenericType")]
+    public interface IGenericType<T>
+    {
+        [Action("0")]
+        Task<int> Sum(T entity);
+    }
+
+    public class GenericTypeHandler : IGenericType<CalculatorArgument>
+    {
+        public async Task<int> Sum(CalculatorArgument argument)
+        {
+            return argument.Left + argument.Right;
+        }
     }
 
     public interface ICalculatorMerge : ICalculator, IMerge

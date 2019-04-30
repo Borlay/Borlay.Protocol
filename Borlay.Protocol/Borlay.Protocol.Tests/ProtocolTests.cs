@@ -162,6 +162,21 @@ namespace Borlay.Protocol.Tests
         }
 
         [Test]
+        public async Task SocketGenericInterfaceTest()
+        {
+            TcpListener listener = new TcpListener(106);
+            listener.Start();
+
+            var calculators = await GetConnections<IGenericType<CalculatorArgument>>(listener, CancellationToken.None);
+
+            List<Task<CalculatorResult>> tasks = new List<Task<CalculatorResult>>();
+
+            var sum = await calculators[0].Sum(new CalculatorArgument() { Left = 3, Right = 2 });
+
+            Assert.AreEqual(5, sum);
+        }
+
+        [Test]
         public async Task SocketAddDuoTest()
         {
             TcpListener listener = new TcpListener(104);
