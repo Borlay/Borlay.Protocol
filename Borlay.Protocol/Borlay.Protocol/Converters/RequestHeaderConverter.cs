@@ -1,6 +1,6 @@
 ﻿using System;
 using Borlay.Arrays;
-using Borlay.Serialization.Converters;
+using Borlay.Serialization;
 
 namespace Borlay.Protocol.Converters
 {

@@ -1,5 +1,5 @@
 ﻿using System;
-using Borlay.Serialization.Converters;
+using Borlay.Serialization;
 
 namespace Borlay.Protocol.Converters
 {
