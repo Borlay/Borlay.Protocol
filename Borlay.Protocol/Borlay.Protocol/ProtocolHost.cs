@@ -100,6 +100,17 @@ namespace Borlay.Protocol
         {
             try
             {
+                if(client.Client.RemoteEndPoint is IPEndPoint ep)
+                {
+                    var epInfo = new EndpointInfo()
+                    {
+                        Address = ep.Address.ToString(),
+                        Port = ep.Port,
+                    };
+                    session.Resolver.Register(epInfo);
+                }
+
+
                 var packetStream = new PacketStream(client.GetStream());
                 var protocol = new SocketProtocolHandler(session, packetStream, Serializer, HandlerProvider);
 
@@ -202,5 +213,12 @@ namespace Borlay.Protocol
         {
             Resolver.Dispose();
         }
+    }
+
+    public class EndpointInfo
+    {
+        public string Address { get; set; }
+
+        public int Port { get; set; }
     }
 }
