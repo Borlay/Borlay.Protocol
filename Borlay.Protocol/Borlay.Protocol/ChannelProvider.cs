@@ -9,7 +9,7 @@ namespace Borlay.Protocol
 {
     public interface IChannelProvider : IDisposable
     {
-        Task<TInterface> GetChannelAsync<TInterface>(bool force = false) where TInterface : class;
+        Task<TInterface> GetChannelAsync<TInterface>(bool forceReconnect = false) where TInterface : class;
         bool HashChannel<TInterface>();
     }
 
@@ -45,7 +45,7 @@ namespace Borlay.Protocol
         }
 
 
-        public async Task<TInterface> GetChannelAsync<TInterface>(bool force = false) where TInterface : class
+        public async Task<TInterface> GetChannelAsync<TInterface>(bool forceReconnect = false) where TInterface : class
         {
             if (!HashChannel<TInterface>())
                 ThrowNotFound<TInterface>();
@@ -53,7 +53,7 @@ namespace Borlay.Protocol
             await slim.WaitAsync();
             try
             {
-                if (session == null || session.IsDisposed || force)
+                if (session == null || session.IsDisposed || forceReconnect)
                 {
                     channels.Clear();
                     await ConnectAsync();
@@ -119,12 +119,12 @@ namespace Borlay.Protocol
             this.Providers = factories;
         }
 
-        public async Task<TInterface> GetChannelAsync<TInterface>(bool force = false) where TInterface : class
+        public async Task<TInterface> GetChannelAsync<TInterface>(bool forceReconnect = false) where TInterface : class
         {
             foreach (var provider in Providers)
             {
                 if (provider.HashChannel<TInterface>())
-                    return await provider.GetChannelAsync<TInterface>();
+                    return await provider.GetChannelAsync<TInterface>(forceReconnect);
             }
 
             throw new KeyNotFoundException($"Channel for interface {typeof(TInterface)} not found");
