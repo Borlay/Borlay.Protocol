@@ -206,8 +206,12 @@ namespace Borlay.Protocol
             ThrowClosed();
             CheckListening();
 
-            return Task.Factory.StartNew(() =>
+            var task = Task.Factory.StartNew(() =>
             {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                cancellationToken.Register(() => cts.Cancel());
+                cancellationToken = cts.Token;
+
                 do
                 {
                     try
@@ -216,7 +220,7 @@ namespace Borlay.Protocol
                         if (length < 11 || length > readBuffer.Length)
                             throw new ProtocolException(ErrorCode.BadRequest);
 
-                        HandlePacket(readBuffer, length, cancellationToken);
+                        HandlePacket(readBuffer, length, cts);
 
                         cancellationToken.ThrowIfCancellationRequested();
                     }
@@ -227,9 +231,10 @@ namespace Borlay.Protocol
                     }
                 } while (!cancellationToken.IsCancellationRequested);
             }, TaskCreationOptions.LongRunning);
+            return task;
         }
 
-        protected virtual void HandlePacket(byte[] readBuffer, int length, CancellationToken cancellationToken)
+        protected virtual void HandlePacket(byte[] readBuffer, int length, CancellationTokenSource cancellationTokenSource)
         {
             ThrowClosed();
 
@@ -285,7 +290,7 @@ namespace Borlay.Protocol
             }
             else if (requestHeader.RequestType == RequestType.Request)
             {
-                HandleRequest(resolvedContent, requestId, index, cancellationToken);
+                HandleRequest(resolvedContent, requestId, index, cancellationTokenSource);
             }
             else
                 throw new ProtocolException(ErrorCode.BadRequest);
@@ -312,21 +317,33 @@ namespace Borlay.Protocol
             }
         }
 
-        protected virtual async void HandleRequest(DataContent dataContent, int requestId, int index, CancellationToken cancellationToken)
+        protected virtual async void HandleRequest(DataContent dataContent, int requestId, int index, CancellationTokenSource cancellationTokenSource)
         {
             var cache = false;
             try
             {
                 var stop = ProtocolWatch.Start("rp-handle-request");
-                var result = await protocolHandler.HandleDataAsync(ResolverSession, dataContent, cancellationToken);
+                var result = await protocolHandler.HandleDataAsync(ResolverSession, dataContent, cancellationTokenSource.Token);
 
                 stop();
                 SendResponse(result, requestId, false, cache);
             }
             catch(Exception e)
             {
-                var response = CreateErrorResponse(e);
-                SendResponse(response, requestId, false, cache);
+                try
+                {
+                    var response = CreateErrorResponse(e);
+                    SendResponse(response, requestId, false, cache);
+                }
+                catch (Exception re)
+                {
+                    try
+                    {
+                        OnClosed(e);
+                        cancellationTokenSource.Cancel();
+                    }
+                    catch { }
+                }
             }
         }
 

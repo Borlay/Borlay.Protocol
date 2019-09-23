@@ -15,7 +15,7 @@ namespace Borlay.Protocol
     public class ProtocolHost : IDisposable
     {
         public event Action<ProtocolHost, IResolverSession, bool> ClientConnected = (h, s, c) => { };
-        public event Action<ProtocolHost, IResolverSession, bool, AggregateException> ClientDisconnected = (h, s, c, e) => { };
+        public event Action<ProtocolHost, IResolverSession, bool, Exception> ClientDisconnected = (h, s, c, e) => { };
         public event Action<ProtocolHost, Exception> Exception = (h, e) => { };
 
         private volatile bool loaded = false;
@@ -56,7 +56,7 @@ namespace Borlay.Protocol
                             var session = Resolver.CreateSession();
                             session.Resolver.Register(client, false);
                             session.Resolver.AddDisposable(client);
-                            var listenTask = ClientListenAsync(client, session, false, cancellationToken);
+                            ClientListenAsync(client, session, false, cancellationToken);
                         }
                         catch
                         {
@@ -91,16 +91,16 @@ namespace Borlay.Protocol
             session.Resolver.AddDisposable(client);
 
             await client.ConnectAsync(host, port);
-            var task = ClientListenAsync(client, session, true, cancellationToken);
+            ClientListenAsync(client, session, true, cancellationToken);
 
             return session;
         }
 
-        protected Task ClientListenAsync(TcpClient client, IResolverSession session, bool isClient, CancellationToken cancellationToken)
+        protected async void ClientListenAsync(TcpClient client, IResolverSession session, bool isClient, CancellationToken cancellationToken)
         {
             try
             {
-                if(client.Client.RemoteEndPoint is IPEndPoint ep)
+                if (client.Client.RemoteEndPoint is IPEndPoint ep)
                 {
                     var epInfo = new EndpointInfo()
                     {
@@ -118,32 +118,23 @@ namespace Borlay.Protocol
 
                 ClientConnected(this, session, isClient);
 
-                var listenTask = protocol.ListenAsync(cancellationToken);
-
-                listenTask.ContinueWith((t) =>
-                {
-                    try
-                    {
-                        ClientDisconnected(this, session, isClient, t.Exception);
-                    }
-                    catch(Exception e)
-                    {
-                        OnException(e);
-                    }
-                    finally
-                    {
-                        if (!session.TryDispose(out var ex))
-                            OnException(ex);
-                    }
-                });
-                return listenTask;
+                await protocol.ListenAsync(cancellationToken);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 if (!session.TryDispose(out var ex))
-                    OnException(ex);
-                OnException(e);
-                throw;
+                    TryOnException(ex);
+
+                TryOnException(e);
+
+                try
+                {
+                    ClientDisconnected(this, session, isClient, e);
+                }
+                catch (Exception de)
+                {
+                    TryOnException(de);
+                }
             }
         }
 
@@ -172,7 +163,7 @@ namespace Borlay.Protocol
             return false;
         }
 
-        protected virtual void OnException(Exception e)
+        protected virtual void TryOnException(Exception e)
         {
             try
             {
