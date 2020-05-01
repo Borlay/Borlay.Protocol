@@ -11,7 +11,7 @@ var host = new ProtocolHost();
 // Load controllers from reference.
 host.LoadFromReference<ProtocolHostTests>();
 
-// Register object to dependency injection.
+// Register object to dependency injection. Just an example. This test doesn't require this.
 host.Resolver.Register(new CalculatorParameter() { First = 10 });
 
 // Start server. Should be skiped on client side.
