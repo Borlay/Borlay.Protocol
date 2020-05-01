@@ -82,11 +82,6 @@ namespace Borlay.Protocol.Tests
             session.Dispose();
         }
 
-        private void Host_ClientConnected(ProtocolHost arg1, Borlay.Injection.IResolverSession arg2)
-        {
-            throw new NotImplementedException();
-        }
-
         [Test]
         public async Task HostAndChannelFactory()
         {
