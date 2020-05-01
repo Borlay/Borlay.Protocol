@@ -25,11 +25,11 @@ namespace Borlay.Protocol.Tests
     public class AddMethod : IAddMethod
     {
         private readonly CalculatorParameter calculatorParameter;
-        private readonly IResolverSession resolverSession;
 
         public AddMethod(CalculatorParameter calculatorParameter)
         {
-            this.calculatorParameter = calculatorParameter;
+            // an example that shows that you can pass parameters from dependency injection to consructor.
+            this.calculatorParameter = calculatorParameter ?? throw new ArgumentNullException(nameof(calculatorParameter));
         }
 
         public async Task<CalculatorResult> AddAsync(int first, int second)
