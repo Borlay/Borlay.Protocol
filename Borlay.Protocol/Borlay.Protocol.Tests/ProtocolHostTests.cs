@@ -15,6 +15,7 @@ namespace Borlay.Protocol.Tests
         [Test]
         public async Task HostAndCreateChannel()
         {
+            // Create host
             var host = new ProtocolHost();
 
             // Load controllers from reference.
