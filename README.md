@@ -22,7 +22,7 @@ IResolverSession clientSession = null;
 // Handle client connections.
 host.ClientConnected += (h, s) =>
 {
-    // Session of a client connected to server.
+    // Session of client connected to server.
     clientSession = s;
 };
 
