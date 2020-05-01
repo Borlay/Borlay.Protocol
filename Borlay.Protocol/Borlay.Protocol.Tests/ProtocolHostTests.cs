@@ -43,8 +43,8 @@ namespace Borlay.Protocol.Tests
             // Connect client. Should be skiped on server side.
             var session = await host.StartClientAsync("127.0.0.1", 90);
 
-            // Create channel for interface to call method from client to server.
-            var serverSidecalculator = session.CreateChannel<IAddMethod>();
+            // Create channel of IAddMethod interface on client side and call method from client to server.
+            var serverSideCalculator = session.CreateChannel<IAddMethod>();
 
             // Create Stopwatch for performance measure.
             var watch = Stopwatch.StartNew();
@@ -55,7 +55,7 @@ namespace Borlay.Protocol.Tests
             for (int i = 0; i < 10000; i++)
             {
                 // From client call method on server side.
-                var task = serverSidecalculator.AddAsync(10, 9);
+                var task = serverSideCalculator.AddAsync(10, 9);
                 tasks.Add(task);
             }
 
@@ -72,7 +72,8 @@ namespace Borlay.Protocol.Tests
             // Check if elapsed time is less than one second.
             Assert.IsTrue(watch.ElapsedMilliseconds < 1000, $"Elapsed time is more than one second. Elapsed time in milliseconds: {watch.ElapsedMilliseconds}");
 
-            // Create channel for interface and call method from server to client.
+            // Since we created both server and client from same ProtocolHost, they have same controllers that we can call.
+            // Create channel of IAddMethod interface on server side and call method from server to client.
             var clientSideCalculator = clientSession.CreateChannel<IAddMethod>();
             var clientResult = await clientSideCalculator.AddAsync(10, 10);
             Assert.AreEqual(20, clientResult.Result);
