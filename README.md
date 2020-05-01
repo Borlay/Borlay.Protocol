@@ -34,7 +34,7 @@ host.ClientConnected += (h, s) =>
 var session = await host.StartClientAsync("127.0.0.1", 90);
 
 // Create channel of IAddMethod interface on client side and call method from client to server.
-var serverSidecalculator = session.CreateChannel<IAddMethod>();
+var serverSideCalculator = session.CreateChannel<IAddMethod>();
 
 // Create Stopwatch for performance measure.
 var watch = Stopwatch.StartNew();
@@ -45,7 +45,7 @@ var tasks = new List<Task<CalculatorResult>>();
 for (int i = 0; i < 10000; i++)
 {
     // From client call method on server side.
-    var task = serverSidecalculator.AddAsync(10, 9);
+    var task = serverSideCalculator.AddAsync(10, 9);
     tasks.Add(task);
 }
 
