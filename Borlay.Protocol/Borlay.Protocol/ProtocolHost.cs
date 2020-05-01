@@ -14,8 +14,11 @@ namespace Borlay.Protocol
 {
     public class ProtocolHost : IDisposable
     {
-        public event Action<ProtocolHost, IResolverSession, bool> ClientConnected = (h, s, c) => { };
-        public event Action<ProtocolHost, IResolverSession, bool, Exception> ClientDisconnected = (h, s, c, e) => { };
+        public event Action<ProtocolHost, IResolverSession> Connected = (h, s) => { };
+        public event Action<ProtocolHost, IResolverSession, Exception> Disconnected = (h, s, e) => { };
+
+        public event Action<ProtocolHost, IResolverSession> ClientConnected = (h, s) => { };
+        public event Action<ProtocolHost, IResolverSession, Exception> ClientDisconnected = (h, s, e) => { };
         public event Action<ProtocolHost, Exception> Exception = (h, e) => { };
 
         private volatile bool loaded = false;
@@ -116,7 +119,10 @@ namespace Borlay.Protocol
 
                 session.Resolver.Register(protocol);
 
-                ClientConnected(this, session, isClient);
+                if(!isClient)
+                    ClientConnected(this, session);
+                else
+                    Connected(this, session);
 
                 await protocol.ListenAsync(cancellationToken);
             }
@@ -129,7 +135,11 @@ namespace Borlay.Protocol
 
                 try
                 {
-                    ClientDisconnected(this, session, isClient, e);
+                    if (!isClient)
+                        ClientDisconnected(this, session, e);
+                    else
+                        Disconnected(this, session, e);
+
                 }
                 catch (Exception de)
                 {

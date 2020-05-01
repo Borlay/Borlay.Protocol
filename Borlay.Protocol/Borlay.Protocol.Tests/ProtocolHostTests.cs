@@ -1,4 +1,5 @@
 ﻿using Borlay.Arrays;
+using Borlay.Injection;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -15,26 +16,49 @@ namespace Borlay.Protocol.Tests
         public async Task HostAndCreateChannel()
         {
             var host = new ProtocolHost();
-            host.LoadFromReference<ProtocolHostTests>();
-            host.Resolver.Register(new CalculatorParameter() { First = 10 });
-            
-            var serverTask = host.StartServerAsync("127.0.0.1", 90, CancellationToken.None);
 
-            host.ClientDisconnected += (h, s, c , e) =>
+            // Load controlers from reference.
+            host.LoadFromReference<ProtocolHostTests>();
+
+            // Register object to dependency injection.
+            host.Resolver.Register(new CalculatorParameter() { First = 10 });
+
+            // Start server. Should be skiped on client side.
+            var serverTask = host.StartServerAsync("127.0.0.1", 90, CancellationToken.None);
+            
+
+            IResolverSession clientSession = null;
+            // Handle client connections.
+            host.ClientConnected += (h, s) =>
             {
-                var isClient = c;
+                // Session of a client connected to server.
+                clientSession = s;
             };
 
+            // Can be used in Program.Main to run server. Task ends when server socket stops listening.
+            // await serverTask;
 
-            using (var session = await host.StartClientAsync("127.0.0.1", 90))
-            {
-                var calculator = session.CreateChannel<ICalculator>();
 
-                var result = await calculator.AddAsync("9");
-                Assert.AreEqual(19, result.Result);
-            }
+            // Connect client. Should be skiped on server side.
+            var session = await host.StartClientAsync("127.0.0.1", 90);
 
-            //await serverTask;
+            // Create channel for interface and call method from client to server.
+            var serverSidecalculator = session.CreateChannel<IAddMethod>();
+            var serverResult = await serverSidecalculator.AddAsync(10, 9);
+            Assert.AreEqual(19, serverResult.Result);
+
+            // Create channel for interface and call method from server to client.
+            var clientSideCalculator = clientSession.CreateChannel<IAddMethod>();
+            var clientResult = await clientSideCalculator.AddAsync(10, 10);
+            Assert.AreEqual(20, clientResult.Result);
+
+            // close client connection.
+            session.Dispose();
+        }
+
+        private void Host_ClientConnected(ProtocolHost arg1, Borlay.Injection.IResolverSession arg2)
+        {
+            throw new NotImplementedException();
         }
 
         [Test]
