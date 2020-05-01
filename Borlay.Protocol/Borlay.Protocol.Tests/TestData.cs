@@ -16,7 +16,7 @@ namespace Borlay.Protocol.Tests
 
     [Resolve(Singletone = false)]
     [Handler]
-    public interface IAddMethod //: IMerge
+    public interface IAddMethod
     {
         [Action]
         Task<CalculatorResult> AddAsync(int first, int second);
